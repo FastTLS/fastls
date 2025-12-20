@@ -1,0 +1,9 @@
+go 1.24
+
+use (
+	.
+	./main/fetch
+	./main/mitm
+	./main/rpc
+)
+

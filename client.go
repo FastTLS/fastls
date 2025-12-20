@@ -1,0 +1,58 @@
+package fastls
+
+import (
+	http "github.com/Wuhan-Dongce/fhttp"
+	"github.com/Wuhan-Dongce/fhttp/http2"
+
+	"time"
+
+	"golang.org/x/net/proxy"
+)
+
+type browser struct {
+	// Return a greeting that embeds the name in a message.
+	Fingerprint   Fingerprint
+	UserAgent     string
+	Cookies       []Cookie
+	HTTP2Settings *http2.HTTP2Settings
+}
+
+var disabledRedirect = func(req *http.Request, via []*http.Request) error {
+	return http.ErrUseLastResponse
+}
+
+func clientBuilder(browser browser, dialer proxy.ContextDialer, timeout int, disableRedirect bool) http.Client {
+	//if timeout is not set in call default to 15
+	if timeout == 0 {
+		timeout = 15
+	}
+	client := http.Client{
+		Transport: newRoundTripper(browser, dialer),
+		Timeout:   time.Duration(timeout) * time.Second,
+	}
+	//if disableRedirect is set to true httpclient will not redirect
+	if disableRedirect {
+		client.CheckRedirect = disabledRedirect
+	}
+	return client
+}
+
+// newClient creates a new http client
+func newClient(browser browser, timeout int, disableRedirect bool, UserAgent string, proxyURL ...string) (http.Client, error) {
+	var dialer proxy.ContextDialer
+	// Check if a valid proxyURL is provided.
+	if len(proxyURL) > 0 && len(proxyURL[0]) > 0 {
+		var err error
+		dialer, err = newConnectDialer(proxyURL[0], UserAgent)
+		if err != nil {
+			return http.Client{
+				Timeout:       time.Duration(timeout) * time.Second,
+				CheckRedirect: disabledRedirect,
+			}, err
+		}
+	} else {
+		dialer = proxy.Direct
+	}
+
+	return clientBuilder(browser, dialer, timeout, disableRedirect), nil
+}
