@@ -5,7 +5,7 @@ go 1.24
 toolchain go1.24.11
 
 require (
-	github.com/FastTLS/fhttp v0.0.0-20251109024753-50fd8b6a2b4f
+	github.com/FastTLS/fhttp v0.0.0-20251222105645-5a77e3aced13
 	github.com/andybalholm/brotli v1.0.6
 	github.com/gorilla/websocket v1.5.3
 	github.com/klauspost/compress v1.18.1
@@ -21,5 +21,3 @@ require (
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 )
-
-replace github.com/FastTLS/fhttp => ./fhttp
