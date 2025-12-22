@@ -3,7 +3,7 @@
   
   # Fastls
   
-  High-performance TLS fingerprint spoofing library with support for JA3/JA4R fingerprints and browser emulation.
+  High-performance TLS fingerprint simulation library, supporting JA3/JA4R and browser TLS fingerprint simulation.
   
   > English | [中文](./README.md)
 </div>
@@ -11,8 +11,8 @@
 ## Features
 
 - ✅ High Performance - Built-in goroutine pool for asynchronous request handling
-- ✅ TLS Fingerprint Spoofing - Support for JA3 fingerprints, JA4R fingerprints (experimental)
-- ✅ Browser Emulation - Support for Chrome, Firefox, Edge, and other browsers
+- ✅ TLS Fingerprint Simulation - Support for JA3, JA4R (experimental), and various browser TLS fingerprint simulation
+- ✅ Browser Support - Support for mainstream browsers including Chrome, Firefox, Edge, Safari, Opera, etc.
 - ✅ Custom Header Ordering - Implemented via [fhttp](https://github.com/useflyent/fhttp)
 - ✅ Proxy Support - HTTP, HTTPS, SOCKS5
 - ✅ Multiple Service Modes - Fetch service, MITM proxy, RPC service (JSON-RPC/gRPC)

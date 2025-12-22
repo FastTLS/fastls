@@ -3,7 +3,7 @@
   
   # Fastls
   
-  高性能 TLS 指纹伪装库，支持 JA3/JA4R 指纹和浏览器模拟。
+  高性能 TLS 指纹模拟库，支持 JA3/JA4R 和浏览器的 TLS 指纹模拟。
   
   > [English](./README_EN.md) | 中文
 </div>
@@ -11,8 +11,8 @@
 ## 特性
 
 - ✅ 高性能 - 内置 goroutine 池处理异步请求
-- ✅ TLS 指纹伪装 - 支持 JA3 指纹，JA4R 指纹（实验性）
-- ✅ 浏览器模拟 - 支持 Chrome、Firefox、Edge 等多种浏览器
+- ✅ TLS 指纹模拟 - 支持 JA3、JA4R（实验性）和多种浏览器的 TLS 指纹模拟
+- ✅ 浏览器支持 - 支持 Chrome、Firefox、Edge、Safari、Opera 等主流浏览器
 - ✅ 自定义请求头顺序 - 通过 [fhttp](https://github.com/useflyent/fhttp) 实现
 - ✅ 代理支持 - HTTP、HTTPS、SOCKS5
 - ✅ 多种服务模式 - Fetch 服务、MITM 代理、RPC 服务（JSON-RPC/gRPC）
