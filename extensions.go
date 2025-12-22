@@ -334,15 +334,18 @@ func getSignatureAlgorithms(browserType string) []utls.SignatureScheme {
 			//utls.SignatureScheme(0x0601),
 		}
 	default:
+		// other 类型：兼容其他浏览器和非浏览器，使用通用的签名算法列表
 		return []utls.SignatureScheme{
 			utls.ECDSAWithP256AndSHA256,
 			utls.PSSWithSHA256,
 			utls.PKCS1WithSHA256,
 			utls.ECDSAWithP384AndSHA384,
-			utls.ECDSAWithP384AndSHA384,
 			utls.PSSWithSHA384,
 			utls.PKCS1WithSHA384,
+			utls.ECDSAWithP521AndSHA512,
 			utls.PSSWithSHA512,
+			utls.PKCS1WithSHA512,
+			utls.ECDSAWithSHA1,
 			utls.PKCS1WithSHA1,
 		}
 	}
@@ -397,8 +400,11 @@ func getKeyShares(browserType string) []utls.KeyShare {
 			{Group: utls.CurveP256},
 		}
 	default:
+		// other 类型：兼容其他浏览器和非浏览器，使用通用的密钥共享曲线
 		return []utls.KeyShare{
+			{Group: utls.X25519, Data: []byte{0}},
 			{Group: utls.CurveP256},
+			{Group: utls.CurveP384},
 		}
 	}
 }

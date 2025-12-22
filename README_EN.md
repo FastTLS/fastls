@@ -13,7 +13,7 @@
 - ✅ High Performance - Built-in goroutine pool for asynchronous request handling
 - ✅ TLS Fingerprint Simulation - Support for JA3, JA4R (experimental), and various browser TLS fingerprint simulation
 - ✅ Browser Support - Support for mainstream browsers including Chrome, Firefox, Edge, Safari, Opera, etc.
-- ✅ Custom Header Ordering - Implemented via [fhttp](https://github.com/useflyent/fhttp)
+- ✅ Custom Header Ordering - Implemented via [fhttp](https://github.com/Wuhan-Dongce/fhttp)
 - ✅ Proxy Support - HTTP, HTTPS, SOCKS5
 - ✅ Multiple Service Modes - Fetch service, MITM proxy, RPC service (JSON-RPC/gRPC)
 

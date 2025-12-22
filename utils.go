@@ -21,15 +21,20 @@ import (
 const (
 	chrome  = "chrome"  //chrome User agent enum
 	firefox = "firefox" //firefox User agent enum
+	other   = "other"   //other User agent enum
 )
 
 func parseUserAgent(userAgent string) string {
-	switch {
-	case strings.Contains(strings.ToLower(userAgent), "firefox"):
+	lowerUA := strings.ToLower(userAgent)
+	if strings.Contains(lowerUA, "firefox") {
 		return firefox
-	default:
-		return chrome
 	}
+	for _, keyword := range []string{"chrome/", "chromium/", "crios/", "edgi/", "edg/"} {
+		if strings.Contains(lowerUA, keyword) {
+			return chrome
+		}
+	}
+	return other
 }
 
 // DecompressBody unzips compressed data
@@ -176,7 +181,59 @@ func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, 
 		}
 		targetPointFormats = append(targetPointFormats, byte(pid))
 	}
-	extMap["11"] = &utls.SupportedPointsExtension{SupportedPoints: targetPointFormats}
+
+	// 如果点格式不为空，确保扩展列表包含 "11"（ec_point_formats 扩展）
+	// 这样服务器才能检测到点格式并返回在 JA3 中
+	if len(targetPointFormats) > 0 {
+		extMap["11"] = &utls.SupportedPointsExtension{SupportedPoints: targetPointFormats}
+		// 如果扩展列表中还没有 "11"，需要添加它
+		hasExtension11 := false
+		for _, e := range extensions {
+			if e == "11" {
+				hasExtension11 = true
+				break
+			}
+		}
+		if !hasExtension11 {
+			// 将 "11" 添加到扩展列表的适当位置（通常在 "10" 之后）
+			// 找到 "10" 的位置，在其后插入 "11"
+			newExtensions := make([]string, 0, len(extensions)+1)
+			inserted := false
+			for _, e := range extensions {
+				if e == "10" && !inserted {
+					newExtensions = append(newExtensions, e)
+					newExtensions = append(newExtensions, "11")
+					inserted = true
+				} else {
+					newExtensions = append(newExtensions, e)
+				}
+			}
+			// 如果没有找到 "10"，直接添加到列表末尾（PSK 之前）
+			if !inserted {
+				// 找到 PSK (41) 的位置，在其前插入
+				foundPSK := false
+				for i, e := range extensions {
+					if e == "41" {
+						// 在 PSK 之前插入 "11"
+						newExtensions = make([]string, 0, len(extensions)+1)
+						newExtensions = append(newExtensions, extensions[:i]...)
+						newExtensions = append(newExtensions, "11")
+						newExtensions = append(newExtensions, extensions[i:]...)
+						foundPSK = true
+						break
+					}
+				}
+				if !foundPSK {
+					// 如果没有 PSK，直接添加到末尾
+					newExtensions = append(extensions, "11")
+				}
+			}
+			extensions = newExtensions
+		}
+	} else {
+		// 如果点格式为空，仍然设置扩展（但为空数组），以便正确处理
+		extMap["11"] = &utls.SupportedPointsExtension{SupportedPoints: []byte{}}
+	}
 
 	// set extension 43
 	ver, err := strconv.ParseUint(version, 10, 16)
@@ -260,7 +317,7 @@ func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, 
 func createTlsVersion(ver uint16, browserType string) (tlsMaxVersion uint16, tlsMinVersion uint16, tlsSupport utls.TLSExtension, err error) {
 	// Helper function 根据 UA 是否是 chrome 来构建 Versions 列表
 	buildVersions := func(versions ...uint16) []uint16 {
-		if browserType == "chrome" {
+		if browserType == chrome {
 			return append([]uint16{utls.GREASE_PLACEHOLDER}, versions...)
 		}
 		return versions
