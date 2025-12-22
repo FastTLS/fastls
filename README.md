@@ -106,7 +106,7 @@ go run grpc_server.go
 
 ## 文档
 
-- [Fastls 使用示例](./examples/)
+- [Fastls 使用示例](./_examples/)
 - [Fetch 服务文档](./services/fastls-fetch/README.md)
 - [MITM 代理文档](./services/fastls-mitm/README.md)
 - [RPC 服务文档](./services/fastls-rpc/README.md)

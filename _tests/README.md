@@ -45,7 +45,7 @@
 
 ```bash
 # 在项目根目录
-go test ./tests/... -v
+go test ./_tests/... -v
 
 # 或在 tests 目录下
 cd tests
@@ -88,10 +88,10 @@ go test -v -run "Test.*JA4"
 
 ```bash
 # 显示测试覆盖率
-go test -v -cover ./tests/...
+go test -v -cover ./_tests/...
 
 # 生成详细的覆盖率报告
-go test -coverprofile=coverage.out ./tests/...
+go test -coverprofile=coverage.out ./_tests/...
 go tool cover -html=coverage.out
 ```
 

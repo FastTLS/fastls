@@ -43,9 +43,7 @@ mitm-ca-key.pem
 services/fastls-mitm/mitm-ca-cert.pem
 services/fastls-mitm/mitm-ca-key.pem
 
-# Examples directory (excluded from module downloads)
-examples/
-
-# Scripts directory (excluded from module downloads)
-scripts/
+# Note: _examples/, _scripts/, and _tests/ are tracked in git
+# Go modules automatically exclude directories prefixed with _
+# These directories will be in the repository but not downloaded via 'go get'
 

@@ -106,7 +106,7 @@ go run grpc_server.go
 
 ## Documentation
 
-- [Fastls Usage Examples](./examples/)
+- [Fastls Usage Examples](./_examples/)
 - [Fetch Service Documentation](./services/fastls-fetch/README.md)
 - [MITM Proxy Documentation](./services/fastls-mitm/README.md)
 - [RPC Service Documentation](./services/fastls-rpc/README.md)

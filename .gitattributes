@@ -1,0 +1,7 @@
+# Directories prefixed with _ are automatically excluded by Go modules
+# No need for export-ignore as Go modules ignore _-prefixed directories
+
+# Exclude workspace files from archive
+go.work export-ignore
+go.work.sum export-ignore
+

@@ -76,16 +76,16 @@ go get github.com/FastTLS/fastls@v1
 
 ### Linux/macOS
 
-可以使用 `scripts/release.sh` 脚本快速发布：
+可以使用 `_scripts/release.sh` 脚本快速发布：
 
 ```bash
-chmod +x scripts/release.sh
-./scripts/release.sh v1.0.0 "Release v1.0.0: 初始版本发布"
+chmod +x _scripts/release.sh
+./_scripts/release.sh v1.0.0 "Release v1.0.0: 初始版本发布"
 ```
 
 ### Windows (PowerShell)
 
-可以使用 `scripts/release.ps1` 脚本快速发布：
+可以使用 `_scripts/release.ps1` 脚本快速发布：
 
 ```powershell
 .\scripts\release.ps1 -Version v1.0.0 -Message "Release v1.0.0: 初始版本发布"
