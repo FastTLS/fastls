@@ -48,7 +48,7 @@
 go test ./_tests/... -v
 
 # 或在 tests 目录下
-cd tests
+cd _tests
 go test -v
 ```
 
@@ -169,7 +169,7 @@ cd services/fastls-fetch
 go run fetch_server.go
 
 # 终端 2：运行测试
-cd tests
+cd _tests
 go test -v -run TestFetchAPI
 ```
 
