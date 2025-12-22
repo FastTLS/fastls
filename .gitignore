@@ -1,0 +1,51 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+bin/
+
+# Logs
+*.log
+
+# CA certificates (MITM proxy)
+mitm-ca-cert.pem
+mitm-ca-key.pem
+services/fastls-mitm/mitm-ca-cert.pem
+services/fastls-mitm/mitm-ca-key.pem
+
+# Examples directory (excluded from module downloads)
+examples/
+
+# Scripts directory (excluded from module downloads)
+scripts/
+
