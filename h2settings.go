@@ -1,7 +1,7 @@
 package fastls
 
 import (
-	"github.com/Wuhan-Dongce/fhttp/http2"
+	"github.com/FastTLS/fhttp/http2"
 )
 
 var settings = map[string]http2.SettingID{

@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"strings"
 
-	http "github.com/Wuhan-Dongce/fhttp"
-	"github.com/Wuhan-Dongce/fhttp/http2"
+	http "github.com/FastTLS/fhttp"
+	"github.com/FastTLS/fhttp/http2"
 )
 
 // Options 设置 Fastls 客户端选项

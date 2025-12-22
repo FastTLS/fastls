@@ -4,6 +4,7 @@ import (
 	fastls "github.com/FastTLS/fastls"
 )
 
+// 1:65536;2:0;4:131072;5:16384|12517377|0|m,p,a,s
 var firefoxH2Settings = &fastls.H2Settings{
 	Settings: map[string]int{
 		"HEADER_TABLE_SIZE":   65536,

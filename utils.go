@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	chrome  = "chrome"  //chrome User agent enum
-	firefox = "firefox" //firefox User agent enum
-	other   = "other"   //other User agent enum
+	chrome  = "chrome"  // Chrome 浏览器类型
+	firefox = "firefox" // Firefox 浏览器类型
+	other   = "other"   // 其他浏览器类型
 )
 
 func parseUserAgent(userAgent string) string {
@@ -37,7 +37,7 @@ func parseUserAgent(userAgent string) string {
 	return other
 }
 
-// DecompressBody unzips compressed data
+// DecompressBody 解压缩响应体数据
 func DecompressBody(Body []byte, encoding []string, content []string) (parsedBody string) {
 	if len(encoding) > 0 {
 		if encoding[0] == "gzip" {
@@ -116,16 +116,13 @@ func unZstdData(data []byte) ([]byte, error) {
 	return dec.DecodeAll(data, nil)
 }
 
-// StringToSpec creates a ClientHelloSpec based on a JA3 or JA4R string
-// 如果是指纹类型为 "ja4r"，则返回错误（JA4R 需要不同的处理方式）
+// StringToSpec 将指纹字符串转换为 uTLS ClientHelloSpec
 func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, error) {
-	// 检查是否是 JA4R 格式（JA4R 格式：t13d<num>_<cipher_suites>_<extensions>_<signature_algorithms>）
-	// 例如：t13d5911_002f,0032,..._000a,000b,..._0403,0503,...
+	// 检查是否为 JA4R 格式: t13d<num>_<cipher_suites>_<extensions>_<signature_algorithms>
 	if strings.HasPrefix(fingerprint, "t") && strings.Count(fingerprint, "_") >= 3 {
-		// 尝试解析 JA4R 格式
 		return ParseJA4R(fingerprint, userAgent)
 	}
-	// 继续处理 JA3 格式
+	// 处理 JA3 格式
 	ja3 := fingerprint
 	browserType := parseUserAgent(userAgent)
 	tokens := strings.Split(ja3, ",")
@@ -134,7 +131,7 @@ func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, 
 	ciphers := strings.Split(tokens[1], "-")
 	extensions := strings.Split(tokens[2], "-")
 
-	// 检查 JA3 字符串中是否包含 PSK 扩展（扩展ID 41）
+	// 检查是否包含 PSK 扩展（扩展ID 41）
 	includePSK := false
 	for _, ext := range extensions {
 		if ext == "41" {
@@ -152,14 +149,13 @@ func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, 
 	if len(pointFormats) == 1 && pointFormats[0] == "" {
 		pointFormats = []string{}
 	}
-	// parse curves
+	// 解析椭圆曲线
 	var targetCurves []utls.CurveID
 	if browserType == chrome {
 		targetCurves = append(
 			targetCurves,
 			utls.CurveID(utls.GREASE_PLACEHOLDER),
-			//utls.X25519MLKEM768,
-		) //append grease for Chrome browsers
+		)
 	}
 
 	for _, c := range curves {
@@ -172,7 +168,7 @@ func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, 
 
 	extMap["10"] = &utls.SupportedCurvesExtension{Curves: targetCurves}
 
-	// parse point formats
+	// 解析点格式
 	var targetPointFormats []byte
 	for _, p := range pointFormats {
 		pid, err := strconv.ParseUint(p, 10, 8)
@@ -182,21 +178,32 @@ func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, 
 		targetPointFormats = append(targetPointFormats, byte(pid))
 	}
 
-	// 如果点格式不为空，确保扩展列表包含 "11"（ec_point_formats 扩展）
-	// 这样服务器才能检测到点格式并返回在 JA3 中
-	if len(targetPointFormats) > 0 {
-		extMap["11"] = &utls.SupportedPointsExtension{SupportedPoints: targetPointFormats}
-		// 如果扩展列表中还没有 "11"，需要添加它
-		hasExtension11 := false
-		for _, e := range extensions {
-			if e == "11" {
-				hasExtension11 = true
-				break
-			}
+	// 检查是否包含扩展11
+	hasExtension11 := false
+	for _, e := range extensions {
+		if e == "11" {
+			hasExtension11 = true
+			break
 		}
+	}
+
+	// 点格式不为空时，必须设置扩展11才能发送点格式信息
+	if len(targetPointFormats) > 0 {
+		// 检查原始输入的最后一个点格式，如果已包含 "0" 则不自动添加
+		originalLastPointFormat := ""
+		if len(pointFormats) > 0 {
+			originalLastPointFormat = pointFormats[len(pointFormats)-1]
+		}
+
+		// 保持原始输入的精确性，不自动添加 0
+		if originalLastPointFormat != "0" && targetPointFormats[len(targetPointFormats)-1] != 0 {
+			// 不自动添加 0，保持原始设置的精确性
+		}
+		// 设置扩展11以发送点格式信息
+		extMap["11"] = &utls.SupportedPointsExtension{SupportedPoints: targetPointFormats}
+		// 如果扩展列表中还没有 "11"，需要添加
 		if !hasExtension11 {
-			// 将 "11" 添加到扩展列表的适当位置（通常在 "10" 之后）
-			// 找到 "10" 的位置，在其后插入 "11"
+			// 在 "10" 之后插入 "11"
 			newExtensions := make([]string, 0, len(extensions)+1)
 			inserted := false
 			for _, e := range extensions {
@@ -208,13 +215,11 @@ func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, 
 					newExtensions = append(newExtensions, e)
 				}
 			}
-			// 如果没有找到 "10"，直接添加到列表末尾（PSK 之前）
+			// 如果未找到 "10"，在 PSK (41) 之前插入
 			if !inserted {
-				// 找到 PSK (41) 的位置，在其前插入
 				foundPSK := false
 				for i, e := range extensions {
 					if e == "41" {
-						// 在 PSK 之前插入 "11"
 						newExtensions = make([]string, 0, len(extensions)+1)
 						newExtensions = append(newExtensions, extensions[:i]...)
 						newExtensions = append(newExtensions, "11")
@@ -224,18 +229,14 @@ func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, 
 					}
 				}
 				if !foundPSK {
-					// 如果没有 PSK，直接添加到末尾
 					newExtensions = append(extensions, "11")
 				}
 			}
 			extensions = newExtensions
 		}
-	} else {
-		// 如果点格式为空，仍然设置扩展（但为空数组），以便正确处理
-		extMap["11"] = &utls.SupportedPointsExtension{SupportedPoints: []byte{}}
 	}
 
-	// set extension 43
+	// 设置扩展43（支持的TLS版本）
 	ver, err := strconv.ParseUint(version, 10, 16)
 	if err != nil {
 		return nil, err
@@ -246,22 +247,21 @@ func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, 
 	}
 	extMap["43"] = tlsExtension
 
-	// build extenions list
-	// PSK扩展（41）必须是最后一个扩展，需要特殊处理
+	// 构建扩展列表，PSK扩展（41）必须放在最后
 	var exts []utls.TLSExtension
 	var pskExt utls.TLSExtension
 
-	//Optionally Add Chrome Grease Extension
+	// Chrome 浏览器添加 GREASE 扩展
 	if browserType == chrome {
 		exts = append(exts, &utls.UtlsGREASEExtension{
 			Body: []byte{},
 		})
 	}
 
-	// 先添加所有非PSK扩展，PSK扩展单独处理
+	// 添加所有非PSK扩展，PSK扩展单独处理
 	for _, e := range extensions {
 		if e == "41" {
-			// PSK扩展需要放在最后，先保存起来
+			// PSK扩展保存到后面处理
 			te, ok := extMap[e]
 			if !ok {
 				return nil, raiseExtensionError(e)
@@ -276,23 +276,21 @@ func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, 
 		exts = append(exts, te)
 	}
 
-	// Chrome的最后一个GREASE扩展应该在PSK之前（如果PSK存在）
-	// 如果PSK不存在，GREASE在最后
+	// Chrome 的最后一个 GREASE 扩展放在 PSK 之前（如果存在PSK）
 	if browserType == chrome && pskExt != nil {
 		exts = append(exts, &utls.UtlsGREASEExtension{
 			Body: []byte{},
 		})
 	}
 
-	// PSK扩展必须是最后一个扩展
+	// PSK扩展放在最后
 	if pskExt != nil {
 		exts = append(exts, pskExt)
 	}
 
-	// build CipherSuites
+	// 构建密码套件列表
 	var suites []uint16
-	//Optionally Add Chrome Grease Extension
-	// if browserType == chrome && !tlsExtensions.UseGREASE {
+	// Chrome 浏览器添加 GREASE 占位符
 	if browserType == chrome {
 		suites = append(suites, utls.GREASE_PLACEHOLDER)
 	}
@@ -313,9 +311,9 @@ func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, 
 	}, nil
 }
 
-// TLSVersion，Ciphers，Extensions，EllipticCurves，EllipticCurvePointFormats
+// createTlsVersion 创建 TLS 版本扩展
 func createTlsVersion(ver uint16, browserType string) (tlsMaxVersion uint16, tlsMinVersion uint16, tlsSupport utls.TLSExtension, err error) {
-	// Helper function 根据 UA 是否是 chrome 来构建 Versions 列表
+	// 根据浏览器类型构建版本列表，Chrome 添加 GREASE 占位符
 	buildVersions := func(versions ...uint16) []uint16 {
 		if browserType == chrome {
 			return append([]uint16{utls.GREASE_PLACEHOLDER}, versions...)
@@ -356,7 +354,7 @@ func PrettyStruct(data interface{}) (string, error) {
 	return string(val), nil
 }
 
-// ConvertUtlsConfig converts utls.Config to tls.Config
+// ConvertUtlsConfig 将 utls.Config 转换为 tls.Config
 func ConvertUtlsConfig(utlsConfig *utls.Config) *tls.Config {
 	if utlsConfig == nil {
 		return nil

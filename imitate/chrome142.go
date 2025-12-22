@@ -6,6 +6,7 @@ import (
 
 const chrome142Extension = "0-5-10-11-13-16-18-23-27-35-43-45-51-17613-65037-65281"
 
+// 1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p
 var chrome142H2Settings = &fastls.H2Settings{
 	Settings: map[string]int{
 		"HEADER_TABLE_SIZE": 65536,

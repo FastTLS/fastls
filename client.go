@@ -1,8 +1,8 @@
 package fastls
 
 import (
-	http "github.com/Wuhan-Dongce/fhttp"
-	"github.com/Wuhan-Dongce/fhttp/http2"
+	http "github.com/FastTLS/fhttp"
+	"github.com/FastTLS/fhttp/http2"
 
 	"time"
 

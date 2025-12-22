@@ -14,8 +14,8 @@ import (
 
 	stdhttp "net/http"
 
-	http "github.com/Wuhan-Dongce/fhttp"
-	http2 "github.com/Wuhan-Dongce/fhttp/http2"
+	http "github.com/FastTLS/fhttp"
+	http2 "github.com/FastTLS/fhttp/http2"
 	utls "github.com/refraction-networking/utls"
 	"golang.org/x/net/proxy"
 )

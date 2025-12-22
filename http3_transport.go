@@ -12,7 +12,7 @@ import (
 
 	stdhttp "net/http"
 
-	http "github.com/Wuhan-Dongce/fhttp"
+	http "github.com/FastTLS/fhttp"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"golang.org/x/net/proxy"
