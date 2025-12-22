@@ -1,7 +1,7 @@
 package imitate
 
 import (
-	fastls "github.com/ChengHoward/Fastls"
+	fastls "github.com/FastTLS/fastls"
 )
 
 func Edge(options *fastls.Options) {

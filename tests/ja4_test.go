@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	fastls "github.com/ChengHoward/Fastls"
-	"github.com/ChengHoward/Fastls/imitate/ja4r"
+	fastls "github.com/FastTLS/fastls"
+	"github.com/FastTLS/fastls/imitate/ja4r"
 )
 
 // TestJa4FingerprintType 测试 JA4 指纹类型

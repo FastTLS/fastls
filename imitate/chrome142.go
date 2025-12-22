@@ -1,7 +1,7 @@
 package imitate
 
 import (
-	fastls "github.com/ChengHoward/Fastls"
+	fastls "github.com/FastTLS/fastls"
 )
 
 const chrome142Extension = "0-5-10-11-13-16-18-23-27-35-43-45-51-17613-65037-65281"

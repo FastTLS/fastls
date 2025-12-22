@@ -5,8 +5,8 @@ import (
 	"io"
 	"testing"
 
-	fastls "github.com/ChengHoward/Fastls"
-	"github.com/ChengHoward/Fastls/imitate"
+	fastls "github.com/FastTLS/fastls"
+	"github.com/FastTLS/fastls/imitate"
 )
 
 // TestNoFingerprint 测试无JA3指纹请求（使用默认配置）

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	fastls "github.com/ChengHoward/Fastls"
-	"github.com/ChengHoward/Fastls/imitate"
+	fastls "github.com/FastTLS/fastls"
+	"github.com/FastTLS/fastls/imitate"
 	"github.com/gorilla/websocket"
 )
 

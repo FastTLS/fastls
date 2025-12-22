@@ -37,7 +37,7 @@
 - **`api_test.go`** - HTTP API 服务测试
   - Fetch API 调用测试
   - 健康检查端点测试
-  - ⚠️ 需要先启动 `main/fetch/fetch_server.go` 服务
+  - ⚠️ 需要先启动 `services/fastls-fetch/fetch_server.go` 服务
 
 ## 🚀 运行测试
 
@@ -165,7 +165,7 @@ go tool cover -html=coverage.out
 
 ```bash
 # 终端 1：启动服务
-cd main/fetch
+cd services/fastls-fetch
 go run fetch_server.go
 
 # 终端 2：运行测试

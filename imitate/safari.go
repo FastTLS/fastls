@@ -1,7 +1,7 @@
 package imitate
 
 import (
-	fastls "github.com/ChengHoward/Fastls"
+	fastls "github.com/FastTLS/fastls"
 )
 
 var safariH2Settings = &fastls.H2Settings{

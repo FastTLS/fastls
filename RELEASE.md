@@ -63,13 +63,13 @@ git push origin --tags
 
 ```bash
 # 使用特定版本
-go get github.com/ChengHoward/Fastls@v1.0.0
+go get github.com/FastTLS/fastls@v1.0.0
 
 # 使用最新版本
-go get github.com/ChengHoward/Fastls@latest
+go get github.com/FastTLS/fastls@latest
 
 # 使用最新主版本
-go get github.com/ChengHoward/Fastls@v1
+go get github.com/FastTLS/fastls@v1
 ```
 
 ## 快速发布脚本

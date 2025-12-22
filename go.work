@@ -2,8 +2,8 @@ go 1.24
 
 use (
 	.
-	./main/fetch
-	./main/mitm
-	./main/rpc
+	./services/fastls-fetch
+	./services/fastls-mitm
+	./services/fastls-rpc
 )
 

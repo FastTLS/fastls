@@ -1,8 +1,8 @@
 package ja4r
 
 import (
-	fastls "github.com/ChengHoward/Fastls"
-	"github.com/ChengHoward/Fastls/imitate"
+	fastls "github.com/FastTLS/fastls"
+	"github.com/FastTLS/fastls/imitate"
 )
 
 // SafariJA4 使用 JA4R 指纹的 Safari 配置

@@ -1,4 +1,4 @@
-module github.com/ChengHoward/Fastls
+module github.com/FastTLS/fastls
 
 go 1.24
 

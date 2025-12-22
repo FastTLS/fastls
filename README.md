@@ -22,7 +22,7 @@
 ### Go
 
 ```bash
-go get github.com/ChengHoward/Fastls
+go get github.com/FastTLS/fastls
 ```
 
 ```go
@@ -30,8 +30,8 @@ package main
 
 import (
     "fmt"
-    fastls "github.com/ChengHoward/Fastls"
-    "github.com/ChengHoward/Fastls/imitate"
+    fastls "github.com/FastTLS/fastls"
+    "github.com/FastTLS/fastls/imitate"
 )
 
 func main() {
@@ -63,7 +63,7 @@ func main() {
 基于 HTTP 的 RESTful API 服务。
 
 ```bash
-cd main/fetch
+cd services/fastls-fetch
 go run fetch_server.go
 ```
 
@@ -72,8 +72,8 @@ go run fetch_server.go
 支持动态生成 SSL 证书的中间人代理。
 
 ```bash
-cd main/mitm
-go run mitm_proxy.go -addr :8888 -browser chrome142
+cd services/fastls-mitm
+go run main.go -addr :8888 -browser chrome142
 ```
 
 ### RPC 服务
@@ -82,13 +82,13 @@ go run mitm_proxy.go -addr :8888 -browser chrome142
 
 **JSON-RPC:**
 ```bash
-cd main/rpc/jsonrpc
+cd services/fastls-rpc/jsonrpc
 go run rpc_server.go
 ```
 
 **gRPC:**
 ```bash
-cd main/rpc/grpc
+cd services/fastls-rpc/grpc
 protoc --go_out=. --go_opt=paths=source_relative \
        --go-grpc_out=. --go-grpc_opt=paths=source_relative \
        proto/fastls.proto
@@ -106,9 +106,10 @@ go run grpc_server.go
 
 ## 文档
 
-- [Fetch 服务文档](./main/fetch/README.md)
-- [MITM 代理文档](./main/mitm/README.md)
-- [RPC 服务文档](./main/rpc/README.md)
+- [Fastls 使用示例](./examples/)
+- [Fetch 服务文档](./services/fastls-fetch/README.md)
+- [MITM 代理文档](./services/fastls-mitm/README.md)
+- [RPC 服务文档](./services/fastls-rpc/README.md)
 
 ## License
 

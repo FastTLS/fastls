@@ -22,7 +22,7 @@
 ### Go
 
 ```bash
-go get github.com/ChengHoward/Fastls
+go get github.com/FastTLS/fastls
 ```
 
 ```go
@@ -30,8 +30,8 @@ package main
 
 import (
     "fmt"
-    fastls "github.com/ChengHoward/Fastls"
-    "github.com/ChengHoward/Fastls/imitate"
+    fastls "github.com/FastTLS/fastls"
+    "github.com/FastTLS/fastls/imitate"
 )
 
 func main() {
@@ -63,7 +63,7 @@ func main() {
 RESTful API service based on HTTP.
 
 ```bash
-cd main/fetch
+cd services/fastls-fetch
 go run fetch_server.go
 ```
 
@@ -72,8 +72,8 @@ go run fetch_server.go
 Man-in-the-middle proxy with dynamic SSL certificate generation.
 
 ```bash
-cd main/mitm
-go run mitm_proxy.go -addr :8888 -browser chrome142
+cd services/fastls-mitm
+go run main.go -addr :8888 -browser chrome142
 ```
 
 ### RPC Service
@@ -82,13 +82,13 @@ Provides both JSON-RPC 2.0 and gRPC implementations.
 
 **JSON-RPC:**
 ```bash
-cd main/rpc/jsonrpc
+cd services/fastls-rpc/jsonrpc
 go run rpc_server.go
 ```
 
 **gRPC:**
 ```bash
-cd main/rpc/grpc
+cd services/fastls-rpc/grpc
 protoc --go_out=. --go_opt=paths=source_relative \
        --go-grpc_out=. --go-grpc_opt=paths=source_relative \
        proto/fastls.proto
@@ -106,9 +106,10 @@ go run grpc_server.go
 
 ## Documentation
 
-- [Fetch Service Documentation](./main/fetch/README.md)
-- [MITM Proxy Documentation](./main/mitm/README.md)
-- [RPC Service Documentation](./main/rpc/README.md)
+- [Fastls Usage Examples](./examples/)
+- [Fetch Service Documentation](./services/fastls-fetch/README.md)
+- [MITM Proxy Documentation](./services/fastls-mitm/README.md)
+- [RPC Service Documentation](./services/fastls-rpc/README.md)
 
 ## License
 

@@ -1,7 +1,7 @@
 package imitate
 
 import (
-	fastls "github.com/ChengHoward/Fastls"
+	fastls "github.com/FastTLS/fastls"
 )
 
 // 在chromium中 21 是时有时无的

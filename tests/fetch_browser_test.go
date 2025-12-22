@@ -5,8 +5,8 @@ import (
 	"io"
 	"testing"
 
-	fastls "github.com/ChengHoward/Fastls"
-	"github.com/ChengHoward/Fastls/imitate"
+	fastls "github.com/FastTLS/fastls"
+	"github.com/FastTLS/fastls/imitate"
 )
 
 // TestWithChromeFingerprint 测试带Chrome指纹请求

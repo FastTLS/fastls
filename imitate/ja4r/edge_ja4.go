@@ -1,7 +1,7 @@
 package ja4r
 
 import (
-	fastls "github.com/ChengHoward/Fastls"
+	fastls "github.com/FastTLS/fastls"
 )
 
 // EdgeJA4 使用 JA4R 指纹的 Edge 配置
