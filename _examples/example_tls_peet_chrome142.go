@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	fastls "github.com/ChengHoward/Fastls"
-	"github.com/ChengHoward/Fastls/imitate"
+	fastls "github.com/FastTLS/fastls"
+	"github.com/FastTLS/fastls/imitate"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 		Headers: map[string]string{
 			"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
 		},
-		//Proxy: "http://127.0.0.1:1080",
+		Proxy: "http://127.0.0.1:10809",
 	}
 	imitate.Chrome142(&options)
 	for s, s2 := range options.Headers {
