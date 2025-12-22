@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -126,6 +127,11 @@ func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, 
 	ja3 := fingerprint
 	browserType := parseUserAgent(userAgent)
 	tokens := strings.Split(ja3, ",")
+
+	// 验证 JA3 格式：至少需要 5 个部分（version, ciphers, extensions, curves, point_formats）
+	if len(tokens) < 5 {
+		return nil, fmt.Errorf("JA3 格式错误: 需要至少5个部分（用逗号分隔），得到 %d 个部分: %s", len(tokens), fingerprint)
+	}
 
 	version := tokens[0]
 	ciphers := strings.Split(tokens[1], "-")
