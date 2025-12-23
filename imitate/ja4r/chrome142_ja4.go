@@ -16,13 +16,7 @@ func Chrome142JA4(options *fastls.Options) {
 		FingerprintValue: "t13d1517h2_002f,0035,009c,009d,1301,1302,1303,c013,c014,c02b,c02c,c02f,c030,cca8,cca9_0005,000a,000b,000d,0012,0017,001b,0023,0029,002b,002d,0033,44cd,fe0d,ff01_0403,0804,0401,0503,0805,0501,0806,0601",
 	}
 
-	options.HTTP2Settings = imitate.Chrome142Http2Setting
-	options.PHeaderOrderKeys = []string{
-		":method",
-		":authority",
-		":scheme",
-		":path",
-	}
+	options.HTTP2SettingsString = imitate.Chrome142HTTP2SettingsString
 	if options.Headers == nil {
 		options.Headers = make(map[string]string)
 	}

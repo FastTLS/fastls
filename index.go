@@ -15,21 +15,22 @@ import (
 
 // Options 设置 Fastls 客户端选项
 type Options struct {
-	URL              string               `json:"url"`
-	Method           string               `json:"method"`
-	Headers          map[string]string    `json:"headers"`
-	Body             string               `json:"body"`
-	Fingerprint      Fingerprint          `json:"fingerprint"` // 指纹接口，支持 Ja3、Ja4 等
-	TLSExtensions    *TLSExtensions       `json:"-"`
-	HTTP2Settings    *http2.HTTP2Settings `json:"-"`
-	PHeaderOrderKeys []string             `json:"-"`
-	HeaderOrderKeys  []string             `json:"-"`
-	UserAgent        string               `json:"userAgent"`
-	Proxy            string               `json:"proxy"`
-	Cookies          []Cookie             `json:"cookies"`
-	Timeout          int                  `json:"timeout"`
-	DisableRedirect  bool                 `json:"disableRedirect"`
-	HeaderOrder      []string             `json:"headerOrder"`
+	URL                 string               `json:"url"`
+	Method              string               `json:"method"`
+	Headers             map[string]string    `json:"headers"`
+	Body                string               `json:"body"`
+	Fingerprint         Fingerprint          `json:"fingerprint"` // 指纹接口，支持 Ja3、Ja4 等
+	TLSExtensions       *TLSExtensions       `json:"-"`
+	HTTP2Settings       *http2.HTTP2Settings `json:"-"`
+	HTTP2SettingsString string               `json:"http2SettingsString"` // HTTP/2 设置字符串，如果设置则覆盖 HTTP2Settings 和 PHeaderOrderKeys
+	PHeaderOrderKeys    []string             `json:"-"`
+	HeaderOrderKeys     []string             `json:"-"`
+	UserAgent           string               `json:"userAgent"`
+	Proxy               string               `json:"proxy"`
+	Cookies             []Cookie             `json:"cookies"`
+	Timeout             int                  `json:"timeout"`
+	DisableRedirect     bool                 `json:"disableRedirect"`
+	HeaderOrder         []string             `json:"headerOrder"`
 }
 
 // requestContext 包含请求、客户端和选项的完整上下文
@@ -69,6 +70,20 @@ func processRequest(options *Options) (*requestContext, error) {
 	// 验证指纹类型，如果是 Ja4 则返回错误
 	if err := options.ValidateFingerprint(); err != nil {
 		return nil, fmt.Errorf("指纹验证失败: %w", err)
+	}
+
+	// 如果 HTTP2SettingsString 不为空，则解析并覆盖 HTTP2Settings 和 PHeaderOrderKeys
+	if options.HTTP2SettingsString != "" {
+		h2Settings, pHeaderOrderKeys, err := ParseH2SettingsStringWithPHeaderOrder(options.HTTP2SettingsString)
+		if err != nil {
+			return nil, fmt.Errorf("解析 HTTP2SettingsString 失败: %w", err)
+		}
+		// 覆盖 HTTP2Settings
+		options.HTTP2Settings = ToHTTP2Settings(h2Settings)
+		// 如果解析出 PHeaderOrderKeys，则覆盖
+		if len(pHeaderOrderKeys) > 0 {
+			options.PHeaderOrderKeys = pHeaderOrderKeys
+		}
 	}
 
 	var browser = browser{

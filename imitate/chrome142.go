@@ -6,44 +6,16 @@ import (
 
 const chrome142Extension = "0-5-10-11-13-16-18-23-27-35-43-45-51-17613-65037-65281"
 
-// 1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p
-var chrome142H2Settings = &fastls.H2Settings{
-	Settings: map[string]int{
-		"HEADER_TABLE_SIZE": 65536,
-		"ENABLE_PUSH":       0,
-		//"MAX_CONCURRENT_STREAMS": 1000, // 117 开始不设置
-		"INITIAL_WINDOW_SIZE":  6291456,
-		"MAX_HEADER_LIST_SIZE": 262144,
-		//"MAX_FRAME_SIZE":         16384,
-	},
-	SettingsOrder: []string{
-		"HEADER_TABLE_SIZE",
-		"ENABLE_PUSH",
-		//"MAX_CONCURRENT_STREAMS",
-		"INITIAL_WINDOW_SIZE",
-		"MAX_HEADER_LIST_SIZE",
-	},
-	ConnectionFlow: 15663105,
-	HeaderPriority: map[string]interface{}{
-		"weight":    256,
-		"streamDep": 0,
-		"exclusive": true,
-	},
-	PriorityFrames: []map[string]interface{}{},
-}
-var Chrome142Http2Setting = fastls.ToHTTP2Settings(chrome142H2Settings)
+// Chrome142HTTP2SettingsString HTTP/2 设置字符串格式
+// 格式: "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p"
+// 注意: m,a,s,p 会自动推导为 :method,:authority,:scheme,:path
+var Chrome142HTTP2SettingsString = "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p"
 
 func Chrome142(options *fastls.Options) {
 	options.Fingerprint = fastls.Ja3Fingerprint{
 		FingerprintValue: "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,65281-27-51-13-0-11-10-5-18-35-43-45-17613-23-65037-16-41,4588-29-23-24,0",
 	}
-	options.HTTP2Settings = Chrome142Http2Setting
-	options.PHeaderOrderKeys = []string{
-		":method",
-		":authority",
-		":scheme",
-		":path",
-	}
+	options.HTTP2SettingsString = Chrome142HTTP2SettingsString
 	if options.Headers == nil {
 		options.Headers = make(map[string]string)
 	}

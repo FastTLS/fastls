@@ -4,41 +4,16 @@ import (
 	fastls "github.com/FastTLS/fastls"
 )
 
-// 1:65536;2:0;4:131072;5:16384|12517377|0|m,p,a,s
-var firefoxH2Settings = &fastls.H2Settings{
-	Settings: map[string]int{
-		"HEADER_TABLE_SIZE":   65536,
-		"ENABLE_PUSH":         0,
-		"INITIAL_WINDOW_SIZE": 131072,
-		"MAX_FRAME_SIZE":      16384,
-	},
-	SettingsOrder: []string{
-		"HEADER_TABLE_SIZE",
-		"ENABLE_PUSH",
-		"INITIAL_WINDOW_SIZE",
-		"MAX_FRAME_SIZE",
-	},
-	ConnectionFlow: 12517377,
-	HeaderPriority: map[string]interface{}{
-		"weight":    42,
-		"streamDep": 0,
-		"exclusive": false,
-	},
-	PriorityFrames: []map[string]interface{}{},
-}
-var FirefoxHttp2Setting = fastls.ToHTTP2Settings(firefoxH2Settings)
+// FirefoxHTTP2SettingsString HTTP/2 设置字符串格式
+// 格式: "1:65536;2:0;4:131072;5:16384|12517377|0|m,p,a,s"
+// 注意: m,p,a,s 会自动推导为 :method,:path,:authority,:scheme
+var FirefoxHTTP2SettingsString = "1:65536;2:0;4:131072;5:16384|12517377|0|m,p,a,s"
 
 func Firefox(options *fastls.Options) {
 	options.Fingerprint = fastls.Ja3Fingerprint{
 		FingerprintValue: "771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-34-18-51-43-13-45-28-27-65037,4588-29-23-24-25-256-257,0",
 	}
-	options.HTTP2Settings = FirefoxHttp2Setting
-	options.PHeaderOrderKeys = []string{
-		":method",
-		":path",
-		":authority",
-		":scheme",
-	}
+	options.HTTP2SettingsString = FirefoxHTTP2SettingsString
 
 	options.Headers["upgrade-insecure-requests"] = "1"
 	options.Headers["Sec-Fetch-Dest"] = "document"

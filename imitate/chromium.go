@@ -7,102 +7,17 @@ import (
 // 在chromium中 21 是时有时无的
 const chromiumExtension = "0-5-10-11-13-16-18-21-23-27-35-43-45-51-17513-65037-65281"
 
-var chromiumH2Settings = &fastls.H2Settings{
-	Settings: map[string]int{
-		"HEADER_TABLE_SIZE":      65536,
-		"ENABLE_PUSH":            0,
-		"MAX_CONCURRENT_STREAMS": 1000,
-		"INITIAL_WINDOW_SIZE":    6291456,
-		"MAX_HEADER_LIST_SIZE":   262144,
-		// 在chromium中是随机的
-		//"UNKNOWN_SETTING_15082 ": 0,
-	},
-	SettingsOrder: []string{
-		"HEADER_TABLE_SIZE",
-		"ENABLE_PUSH",
-		"MAX_CONCURRENT_STREAMS",
-		"INITIAL_WINDOW_SIZE",
-		"MAX_HEADER_LIST_SIZE",
-		"UNKNOWN_SETTING_15082 ",
-	},
-	ConnectionFlow: 15663105,
-	HeaderPriority: map[string]interface{}{
-		"weight":    256,
-		"streamDep": 0,
-		"exclusive": true,
-	},
-	PriorityFrames: []map[string]interface{}{
-		/*{
-			"streamID": 0,
-			"priorityParam": map[string]interface{}{
-				"weight":    0,
-				"streamDep": 0,
-				"exclusive": true,
-			},
-		},*/
-		/*{
-			"streamID": 3,
-			"priorityParam": map[string]interface{}{
-				"weight":    201,
-				"streamDep": 0,
-				"exclusive": false,
-			},
-		},*/
-		/*{
-		  	"streamID": 5,
-		  	"priorityParam": map[string]interface{}{
-		  		"weight":    101,
-		  		"streamDep": 0,
-		  		"exclusive": false,
-		  	},
-		  },
-		  {
-		  	"streamID": 7,
-		  	"priorityParam": map[string]interface{}{
-		  		"weight":    1,
-		  		"streamDep": 0,
-		  		"exclusive": false,
-		  	},
-		  },
-		  {
-		  	"streamID": 9,
-		  	"priorityParam": map[string]interface{}{
-		  		"weight":    1,
-		  		"streamDep": 7,
-		  		"exclusive": false,
-		  	},
-		  },
-		  {
-		  	"streamID": 11,
-		  	"priorityParam": map[string]interface{}{
-		  		"weight":    1,
-		  		"streamDep": 3,
-		  		"exclusive": false,
-		  	},
-		  },
-		  {
-		  	"streamID": 13,
-		  	"priorityParam": map[string]interface{}{
-		  		"weight":    241,
-		  		"streamDep": 0,
-		  		"exclusive": false,
-		  	},
-		  },*/
-	},
-}
-var ChromiumHttp2Setting = fastls.ToHTTP2Settings(chromiumH2Settings)
+// ChromiumHTTP2SettingsString HTTP/2 设置字符串格式
+// 格式: "1:65536;2:0;3:1000;4:6291456;6:262144|15663105|0:256:true|m,a,s,p"
+// 注意: m,a,s,p 会自动推导为 :method,:authority,:scheme,:path
+// 虽然 Chromium 设置了 MAX_CONCURRENT_STREAMS (3:1000)，但在顺序字符串中只使用 m,a,s,p
+var ChromiumHTTP2SettingsString = "1:65536;2:0;3:1000;4:6291456;6:262144|15663105|0:256:true|m,a,s,p"
 
 func Chromium(options *fastls.Options) {
 	options.Fingerprint = fastls.Ja3Fingerprint{
 		FingerprintValue: "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53" + "," + shuffleExtension(chromiumExtension, 7) + "-41,29-23-24,0",
 	}
-	options.HTTP2Settings = ChromiumHttp2Setting
-	options.PHeaderOrderKeys = []string{
-		":method",
-		":authority",
-		":scheme",
-		":path",
-	}
+	options.HTTP2SettingsString = ChromiumHTTP2SettingsString
 	if options.Headers == nil {
 		options.Headers = make(map[string]string)
 	}
