@@ -5,5 +5,7 @@ use (
 	./services/fastls-fetch
 	./services/fastls-mitm
 	./services/fastls-rpc
+	./tools/fastls-bench
+	./tools/fastls-target
 )
 

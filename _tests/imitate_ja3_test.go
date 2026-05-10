@@ -201,7 +201,7 @@ func TestFirefoxJa3Fingerprint(t *testing.T) {
 	}
 
 	// Firefox 使用固定指纹值
-	expectedJA3 := "771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-34-18-51-43-13-45-28-27-65037,4588-29-23-24-25-256-257,0"
+	expectedJA3 := "771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-34-18-51-43-13-45-28-27-65037,4588-29-23-24-25-256-257,0"
 
 	if ja3.FingerprintValue != expectedJA3 {
 		t.Errorf("JA3 指纹不匹配: 期望 %s，实际 %s", expectedJA3, ja3.FingerprintValue)
@@ -215,6 +215,41 @@ func TestFirefoxJa3Fingerprint(t *testing.T) {
 	}
 
 	t.Logf("✅ Firefox JA3 指纹测试通过")
+	t.Logf("  - JA3: %s", ja3.FingerprintValue)
+}
+
+// TestFirefox151Ja3Fingerprint 测试 Firefox151 的 JA3 指纹
+func TestFirefox151Ja3Fingerprint(t *testing.T) {
+	options := &fastls.Options{
+		Headers: make(map[string]string),
+	}
+
+	imitate.Firefox151(options)
+
+	// 验证 Fingerprint 类型
+	ja3, ok := options.Fingerprint.(fastls.Ja3Fingerprint)
+	if !ok {
+		t.Fatal("Fingerprint 应该是 Ja3Fingerprint 类型")
+	}
+
+	// Firefox151 使用固定指纹值（区别于旧版 Firefox，移除了 49162/49161）
+	expectedJA3 := "771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-34-18-51-43-13-45-28-27-65037,4588-29-23-24-25-256-257,0"
+	if ja3.FingerprintValue != expectedJA3 {
+		t.Errorf("JA3 指纹不匹配: 期望 %s，实际 %s", expectedJA3, ja3.FingerprintValue)
+	}
+
+	expectedUA := "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0"
+	if options.UserAgent != expectedUA {
+		t.Errorf("User-Agent 不匹配: 期望 %s，实际 %s", expectedUA, options.UserAgent)
+	}
+
+	// 验证 JA3 指纹格式（应该包含 5 个部分，用逗号分隔）
+	parts := strings.Split(ja3.FingerprintValue, ",")
+	if len(parts) != 5 {
+		t.Errorf("JA3 指纹应该有 5 个部分，实际有 %d 个部分", len(parts))
+	}
+
+	t.Logf("✅ Firefox151 JA3 指纹测试通过")
 	t.Logf("  - JA3: %s", ja3.FingerprintValue)
 }
 
@@ -351,9 +386,19 @@ func TestAllJa3Fingerprints(t *testing.T) {
 			name:    "Firefox",
 			setupFn: imitate.Firefox,
 			validate: func(t *testing.T, ja3 fastls.Ja3Fingerprint) {
-				expected := "771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49162-49161-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-34-18-51-43-13-45-28-27-65037,4588-29-23-24-25-256-257,0"
+				expected := "771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-34-18-51-43-13-45-28-27-65037,4588-29-23-24-25-256-257,0"
 				if ja3.FingerprintValue != expected {
 					t.Errorf("Firefox JA3 指纹不匹配")
+				}
+			},
+		},
+		{
+			name:    "Firefox151",
+			setupFn: imitate.Firefox151,
+			validate: func(t *testing.T, ja3 fastls.Ja3Fingerprint) {
+				expected := "771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-34-18-51-43-13-45-28-27-65037,4588-29-23-24-25-256-257,0"
+				if ja3.FingerprintValue != expected {
+					t.Errorf("Firefox151 JA3 指纹不匹配")
 				}
 			},
 		},

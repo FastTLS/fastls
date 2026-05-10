@@ -201,6 +201,30 @@ func TestFirefoxJA4(t *testing.T) {
 	}
 }
 
+// TestFirefox151JA4 测试 Firefox151 JA4 配置
+func TestFirefox151JA4(t *testing.T) {
+	options := fastls.Options{
+		Headers: make(map[string]string),
+	}
+
+	ja4r.Firefox151JA4(&options)
+
+	// 验证指纹已设置
+	if options.Fingerprint == nil || options.Fingerprint.IsEmpty() {
+		t.Error("Firefox151JA4 应该设置指纹")
+	}
+
+	// 验证指纹类型
+	if !options.IsJa4() {
+		t.Error("Firefox151JA4 应该设置 JA4 指纹")
+	}
+
+	expectedUA := "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0"
+	if options.UserAgent != expectedUA {
+		t.Errorf("Firefox151JA4 User-Agent 不匹配: 期望 %s，实际 %s", expectedUA, options.UserAgent)
+	}
+}
+
 // TestChrome120JA4 测试 Chrome120 JA4 配置
 func TestChrome120JA4(t *testing.T) {
 	options := fastls.Options{

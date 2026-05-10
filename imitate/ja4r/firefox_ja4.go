@@ -5,7 +5,7 @@ import (
 	"github.com/FastTLS/fastls/imitate"
 )
 
-// FirefoxJA4 使用 JA4R 指纹的 Firefox 配置
+// FirefoxJA4 使用 JA4R 指纹的 Firefox（默认最新）配置
 //
 // 注意：此功能是实验性的，API 可能会在未来的版本中发生变化。
 // EXPERIMENTAL: This feature is experimental and the API may change in future versions.
@@ -64,5 +64,23 @@ func FirefoxJA4(options *fastls.Options) {
 		"priority",
 		"te",
 	}
+	options.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0"
+}
+
+// Firefox144JA4 使用 JA4R 指纹的 Firefox 144 配置（仅 UA 为 144）
+func Firefox144JA4(options *fastls.Options) {
+	FirefoxJA4(options)
 	options.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0"
+}
+
+// Firefox147JA4 使用 JA4R 指纹的 Firefox 147 配置（仅 UA 为 147）
+func Firefox147JA4(options *fastls.Options) {
+	FirefoxJA4(options)
+	options.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0"
+}
+
+// Firefox151JA4 使用 JA4R 指纹的 Firefox 151 配置（仅 UA 为 151）
+func Firefox151JA4(options *fastls.Options) {
+	FirefoxJA4(options)
+	options.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0"
 }
