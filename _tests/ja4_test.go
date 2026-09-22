@@ -177,6 +177,28 @@ func TestChrome142JA4(t *testing.T) {
 	}
 }
 
+// TestChrome150JA4 测试 Chrome150 JA4 配置（含 ML-DSA 签名算法）
+func TestChrome150JA4(t *testing.T) {
+	options := fastls.Options{
+		Headers: make(map[string]string),
+	}
+
+	ja4r.Chrome150JA4(&options)
+
+	if options.Fingerprint == nil || options.Fingerprint.IsEmpty() {
+		t.Error("Chrome150JA4 应该设置指纹")
+	}
+	if !options.IsJa4() {
+		t.Error("Chrome150JA4 应该设置 JA4 指纹")
+	}
+	if options.GetFingerprintValue() != ja4r.Chrome150JA4R {
+		t.Errorf("Chrome150JA4R 不匹配: 期望 %s，实际 %s", ja4r.Chrome150JA4R, options.GetFingerprintValue())
+	}
+	if !strings.Contains(options.UserAgent, "Chrome/150") {
+		t.Errorf("User-Agent 应包含 Chrome/150: %s", options.UserAgent)
+	}
+}
+
 // TestFirefoxJA4 测试 Firefox JA4 配置
 func TestFirefoxJA4(t *testing.T) {
 	options := fastls.Options{

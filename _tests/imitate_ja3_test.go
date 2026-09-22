@@ -8,7 +8,7 @@ import (
 	"github.com/FastTLS/fastls/imitate"
 )
 
-// TestChromeJa3Fingerprint 测试 Chrome 的 JA3 指纹
+// TestChromeJa3Fingerprint 测试 Chrome 的 JA3 指纹（默认 = Chrome150）
 func TestChromeJa3Fingerprint(t *testing.T) {
 	options := &fastls.Options{
 		Headers: make(map[string]string),
@@ -16,27 +16,15 @@ func TestChromeJa3Fingerprint(t *testing.T) {
 
 	imitate.Chrome(options)
 
-	// 验证 Fingerprint 类型
 	ja3, ok := options.Fingerprint.(fastls.Ja3Fingerprint)
 	if !ok {
 		t.Fatal("Fingerprint 应该是 Ja3Fingerprint 类型")
 	}
 
-	// Chrome 使用 shuffleExtension，所以指纹值会变化
-	// 但应该包含固定的前缀和后缀
-	expectedPrefix := "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,"
-	expectedSuffix := ",29-23-24,0"
-
-	if !strings.HasPrefix(ja3.FingerprintValue, expectedPrefix) {
-		t.Errorf("JA3 指纹应该以 %s 开头，实际是 %s", expectedPrefix, ja3.FingerprintValue)
+	if ja3.FingerprintValue != imitate.Chrome150JA3 {
+		t.Errorf("JA3 指纹不匹配: 期望 %s，实际 %s", imitate.Chrome150JA3, ja3.FingerprintValue)
 	}
 
-	if !strings.HasSuffix(ja3.FingerprintValue, expectedSuffix) {
-		t.Errorf("JA3 指纹应该以 %s 结尾，实际是 %s", expectedSuffix, ja3.FingerprintValue)
-	}
-
-	// 验证 JA3 指纹格式（应该包含 5 个部分，用逗号分隔）
-	// 格式：TLS版本,密码套件,扩展,椭圆曲线,椭圆曲线格式
 	parts := strings.Split(ja3.FingerprintValue, ",")
 	if len(parts) != 5 {
 		t.Errorf("JA3 指纹应该有 5 个部分，实际有 %d 个部分: %v", len(parts), parts)
@@ -46,7 +34,27 @@ func TestChromeJa3Fingerprint(t *testing.T) {
 	t.Logf("  - JA3: %s", ja3.FingerprintValue)
 }
 
-// TestChromiumJa3Fingerprint 测试 Chromium 的 JA3 指纹
+// TestChrome150Ja3Fingerprint 测试 Chrome150 的 JA3 指纹
+func TestChrome150Ja3Fingerprint(t *testing.T) {
+	options := &fastls.Options{
+		Headers: make(map[string]string),
+	}
+
+	imitate.Chrome150(options)
+
+	ja3, ok := options.Fingerprint.(fastls.Ja3Fingerprint)
+	if !ok {
+		t.Fatal("Fingerprint 应该是 Ja3Fingerprint 类型")
+	}
+
+	if ja3.FingerprintValue != imitate.Chrome150JA3 {
+		t.Errorf("JA3 指纹不匹配: 期望 %s，实际 %s", imitate.Chrome150JA3, ja3.FingerprintValue)
+	}
+
+	t.Logf("✅ Chrome150 JA3 指纹测试通过")
+}
+
+// TestChromiumJa3Fingerprint 测试 Chromium 的 JA3 指纹（与 Chrome150 相同）
 func TestChromiumJa3Fingerprint(t *testing.T) {
 	options := &fastls.Options{
 		Headers: make(map[string]string),
@@ -54,30 +62,13 @@ func TestChromiumJa3Fingerprint(t *testing.T) {
 
 	imitate.Chromium(options)
 
-	// 验证 Fingerprint 类型
 	ja3, ok := options.Fingerprint.(fastls.Ja3Fingerprint)
 	if !ok {
 		t.Fatal("Fingerprint 应该是 Ja3Fingerprint 类型")
 	}
 
-	// Chromium 使用 shuffleExtension，所以指纹值会变化
-	// 但应该包含固定的前缀和后缀
-	expectedPrefix := "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,"
-	expectedSuffix := "-41,29-23-24,0"
-
-	if !strings.HasPrefix(ja3.FingerprintValue, expectedPrefix) {
-		t.Errorf("JA3 指纹应该以 %s 开头，实际是 %s", expectedPrefix, ja3.FingerprintValue)
-	}
-
-	if !strings.HasSuffix(ja3.FingerprintValue, expectedSuffix) {
-		t.Errorf("JA3 指纹应该以 %s 结尾，实际是 %s", expectedSuffix, ja3.FingerprintValue)
-	}
-
-	// 验证 JA3 指纹格式（应该包含 5 个部分，用逗号分隔）
-	// 格式：TLS版本,密码套件,扩展,椭圆曲线,椭圆曲线格式
-	parts := strings.Split(ja3.FingerprintValue, ",")
-	if len(parts) != 5 {
-		t.Errorf("JA3 指纹应该有 5 个部分，实际有 %d 个部分", len(parts))
+	if ja3.FingerprintValue != imitate.Chrome150JA3 {
+		t.Errorf("JA3 指纹不匹配: 期望 %s，实际 %s", imitate.Chrome150JA3, ja3.FingerprintValue)
 	}
 
 	t.Logf("✅ Chromium JA3 指纹测试通过")
@@ -253,8 +244,7 @@ func TestFirefox151Ja3Fingerprint(t *testing.T) {
 	t.Logf("  - JA3: %s", ja3.FingerprintValue)
 }
 
-// TestEdgeJa3Fingerprint 测试 Edge 的 JA3 指纹
-// Edge 调用 Chrome142，所以应该使用 Chrome142 的指纹
+// TestEdgeJa3Fingerprint 测试 Edge 的 JA3 指纹（与 Chrome150 相同）
 func TestEdgeJa3Fingerprint(t *testing.T) {
 	options := &fastls.Options{
 		Headers: make(map[string]string),
@@ -262,21 +252,15 @@ func TestEdgeJa3Fingerprint(t *testing.T) {
 
 	imitate.Edge(options)
 
-	// 验证 Fingerprint 类型
 	ja3, ok := options.Fingerprint.(fastls.Ja3Fingerprint)
 	if !ok {
 		t.Fatal("Fingerprint 应该是 Ja3Fingerprint 类型")
 	}
 
-	// Edge 使用 Chrome142 的固定指纹值
-	expectedJA3 := "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,65281-27-51-13-0-11-10-5-18-35-43-45-17613-23-65037-16-41,4588-29-23-24,0"
-
-	if ja3.FingerprintValue != expectedJA3 {
-		t.Errorf("JA3 指纹不匹配: 期望 %s，实际 %s", expectedJA3, ja3.FingerprintValue)
+	if ja3.FingerprintValue != imitate.Chrome150JA3 {
+		t.Errorf("JA3 指纹不匹配: 期望 %s，实际 %s", imitate.Chrome150JA3, ja3.FingerprintValue)
 	}
 
-	// 验证 JA3 指纹格式（应该包含 5 个部分，用逗号分隔）
-	// 格式：TLS版本,密码套件,扩展,椭圆曲线,椭圆曲线格式
 	parts := strings.Split(ja3.FingerprintValue, ",")
 	if len(parts) != 5 {
 		t.Errorf("JA3 指纹应该有 5 个部分，实际有 %d 个部分", len(parts))
@@ -286,8 +270,7 @@ func TestEdgeJa3Fingerprint(t *testing.T) {
 	t.Logf("  - JA3: %s", ja3.FingerprintValue)
 }
 
-// TestOperaJa3Fingerprint 测试 Opera 的 JA3 指纹
-// Opera 调用 Chrome，所以应该使用 Chrome 的指纹格式（但值会变化）
+// TestOperaJa3Fingerprint 测试 Opera 的 JA3 指纹（与 Chrome150 相同）
 func TestOperaJa3Fingerprint(t *testing.T) {
 	options := &fastls.Options{
 		Headers: make(map[string]string),
@@ -295,30 +278,13 @@ func TestOperaJa3Fingerprint(t *testing.T) {
 
 	imitate.Opera(options)
 
-	// 验证 Fingerprint 类型
 	ja3, ok := options.Fingerprint.(fastls.Ja3Fingerprint)
 	if !ok {
 		t.Fatal("Fingerprint 应该是 Ja3Fingerprint 类型")
 	}
 
-	// Opera 使用 Chrome 的指纹格式（使用 shuffleExtension，所以值会变化）
-	// 但应该包含固定的前缀和后缀
-	expectedPrefix := "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,"
-	expectedSuffix := ",29-23-24,0"
-
-	if !strings.HasPrefix(ja3.FingerprintValue, expectedPrefix) {
-		t.Errorf("JA3 指纹应该以 %s 开头，实际是 %s", expectedPrefix, ja3.FingerprintValue)
-	}
-
-	if !strings.HasSuffix(ja3.FingerprintValue, expectedSuffix) {
-		t.Errorf("JA3 指纹应该以 %s 结尾，实际是 %s", expectedSuffix, ja3.FingerprintValue)
-	}
-
-	// 验证 JA3 指纹格式（应该包含 5 个部分，用逗号分隔）
-	// 格式：TLS版本,密码套件,扩展,椭圆曲线,椭圆曲线格式
-	parts := strings.Split(ja3.FingerprintValue, ",")
-	if len(parts) != 5 {
-		t.Errorf("JA3 指纹应该有 5 个部分，实际有 %d 个部分", len(parts))
+	if ja3.FingerprintValue != imitate.Chrome150JA3 {
+		t.Errorf("JA3 指纹不匹配: 期望 %s，实际 %s", imitate.Chrome150JA3, ja3.FingerprintValue)
 	}
 
 	t.Logf("✅ Opera JA3 指纹测试通过")
@@ -336,9 +302,17 @@ func TestAllJa3Fingerprints(t *testing.T) {
 			name:    "Chrome",
 			setupFn: imitate.Chrome,
 			validate: func(t *testing.T, ja3 fastls.Ja3Fingerprint) {
-				expectedPrefix := "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,"
-				if !strings.HasPrefix(ja3.FingerprintValue, expectedPrefix) {
-					t.Errorf("Chrome JA3 指纹格式不正确")
+				if ja3.FingerprintValue != imitate.Chrome150JA3 {
+					t.Errorf("Chrome JA3 指纹不匹配")
+				}
+			},
+		},
+		{
+			name:    "Chrome150",
+			setupFn: imitate.Chrome150,
+			validate: func(t *testing.T, ja3 fastls.Ja3Fingerprint) {
+				if ja3.FingerprintValue != imitate.Chrome150JA3 {
+					t.Errorf("Chrome150 JA3 指纹不匹配")
 				}
 			},
 		},
@@ -346,9 +320,8 @@ func TestAllJa3Fingerprints(t *testing.T) {
 			name:    "Chromium",
 			setupFn: imitate.Chromium,
 			validate: func(t *testing.T, ja3 fastls.Ja3Fingerprint) {
-				expectedPrefix := "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,"
-				if !strings.HasPrefix(ja3.FingerprintValue, expectedPrefix) {
-					t.Errorf("Chromium JA3 指纹格式不正确")
+				if ja3.FingerprintValue != imitate.Chrome150JA3 {
+					t.Errorf("Chromium JA3 指纹不匹配")
 				}
 			},
 		},
@@ -406,8 +379,7 @@ func TestAllJa3Fingerprints(t *testing.T) {
 			name:    "Edge",
 			setupFn: imitate.Edge,
 			validate: func(t *testing.T, ja3 fastls.Ja3Fingerprint) {
-				expected := "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,65281-27-51-13-0-11-10-5-18-35-43-45-17613-23-65037-16-41,4588-29-23-24,0"
-				if ja3.FingerprintValue != expected {
+				if ja3.FingerprintValue != imitate.Chrome150JA3 {
 					t.Errorf("Edge JA3 指纹不匹配")
 				}
 			},
@@ -416,9 +388,8 @@ func TestAllJa3Fingerprints(t *testing.T) {
 			name:    "Opera",
 			setupFn: imitate.Opera,
 			validate: func(t *testing.T, ja3 fastls.Ja3Fingerprint) {
-				expectedPrefix := "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,"
-				if !strings.HasPrefix(ja3.FingerprintValue, expectedPrefix) {
-					t.Errorf("Opera JA3 指纹格式不正确")
+				if ja3.FingerprintValue != imitate.Chrome150JA3 {
+					t.Errorf("Opera JA3 指纹不匹配")
 				}
 			},
 		},

@@ -21,6 +21,7 @@ type APIResponse struct {
 func main() {
 	// 定义浏览器和对应的 imitate 函数
 	browsers := map[string]func(*fastls.Options){
+		"chrome150": imitate.Chrome150,
 		"chrome142": imitate.Chrome142,
 		"chrome120": imitate.Chrome120,
 		"chrome":    imitate.Chrome,
