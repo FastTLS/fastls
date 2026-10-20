@@ -21,9 +21,6 @@ func Chrome150(options *fastls.Options) {
 		options.Headers = make(map[string]string)
 	}
 
-	options.Headers["Sec-Ch-Ua"] = `"Chromium";v="150", "Google Chrome";v="150", "Not_A Brand";v="99"`
-	options.Headers["Sec-Ch-Ua-Mobile"] = "?0"
-	options.Headers["Sec-Ch-Ua-Platform"] = `"Windows"`
 	options.Headers["Sec-Fetch-Dest"] = "document"
 	options.Headers["Sec-Fetch-Mode"] = "navigate"
 	options.Headers["Sec-Fetch-Site"] = "none"
@@ -63,5 +60,6 @@ func Chrome150(options *fastls.Options) {
 		"cookie",
 		"priority",
 	}
-	options.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+	// UA / Sec-CH-UA 按 Chromium 算法生成（与 cloudflare-bypass-core 一致）
+	applyChromiumClientHints(options, "chrome", 150, "win")
 }

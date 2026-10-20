@@ -4,18 +4,18 @@ import (
 	fastls "github.com/FastTLS/fastls"
 )
 
-// FirefoxHTTP2SettingsString（默认最新）使用 Firefox 151 的 HTTP/2 配置
-var FirefoxHTTP2SettingsString = Firefox147HTTP2SettingsString
+// Firefox151HTTP2SettingsString Firefox 151 HTTP/2 配置
+var Firefox151HTTP2SettingsString = "1:65536;2:0;4:131072;5:16384|12517377|0:42:false|m,p,a,s"
 
-// Firefox151HTTP2SettingsString 保持兼容旧命名
-var Firefox151HTTP2SettingsString = FirefoxHTTP2SettingsString
+// Firefox151JA3 Firefox 151 TLS JA3（含 compress_certificate/27 与 ffdhe 曲线）
+const Firefox151JA3 = "771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-34-18-51-43-13-45-28-27-65037,4588-29-23-24-25-256-257,0"
 
-// Firefox 默认使用最新 Firefox 151 指纹
-func Firefox(options *fastls.Options) {
+// Firefox151 使用 Firefox 151 指纹
+func Firefox151(options *fastls.Options) {
 	options.Fingerprint = fastls.Ja3Fingerprint{
-		FingerprintValue: "771,4865-4867-4866-49195-49199-52393-52392-49196-49200-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-34-18-51-43-13-45-28-27-65037,4588-29-23-24-25-256-257,0",
+		FingerprintValue: Firefox151JA3,
 	}
-	options.HTTP2SettingsString = FirefoxHTTP2SettingsString
+	options.HTTP2SettingsString = Firefox151HTTP2SettingsString
 
 	options.Headers["upgrade-insecure-requests"] = "1"
 	options.Headers["Sec-Fetch-Dest"] = "document"
@@ -62,9 +62,4 @@ func Firefox(options *fastls.Options) {
 		"te",
 	}
 	options.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0"
-}
-
-// Firefox151 保持兼容旧命名
-func Firefox151(options *fastls.Options) {
-	Firefox(options)
 }

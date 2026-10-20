@@ -28,6 +28,7 @@ func main() {
 		"firefox":    imitate.Firefox,
 		"firefox147": imitate.Firefox147,
 		"firefox151": imitate.Firefox151,
+		"firefox158": imitate.Firefox158,
 		"chromium":   imitate.Chromium,
 		"safari":    imitate.Safari,
 		"edge":      imitate.Edge,

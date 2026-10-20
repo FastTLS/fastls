@@ -4,10 +4,12 @@ import (
 	fastls "github.com/FastTLS/fastls"
 )
 
-// Opera 使用与 Chrome150 相同的 TLS/HTTP2，仅 UA / Sec-Ch-Ua 为 Opera
+// Opera 使用 Chrome150 TLS，UA 保持 Opera 形态（Chromium 主版本跟随默认）
 func Opera(options *fastls.Options) {
-	Chrome150(options)
+	ChromeVersion(options, ChromiumVersionDefault)
 
-	options.Headers["Sec-Ch-Ua"] = `"Not_A Brand";v="99", "Opera";v="135", "Chromium";v="150"`
-	options.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 OPR/135.0.0.0"
+	options.Headers["Sec-Ch-Ua"] = GenerateSecChUa(ChromiumVersionDefault, "Opera")
+	// Opera 的 Sec-CH-UA 品牌顺序与 Chrome 不同；上面用 Opera 作为第三品牌
+	// 同时补充常见 Opera UA
+	options.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/160.0.0.0 Safari/537.36 OPR/145.0.0.0"
 }
