@@ -18,9 +18,10 @@ func requestPeetJA3(t *testing.T, input, expected string) {
 		defer resp.Body.Close()
 	}
 	if err != nil {
-		o.Error = err.Error()
+		peetError(o, "request", err)
 		t.Fatal(err)
 	}
+	capturePeetFastlsHeaders(o, resp.Headers)
 	finishPeet(t, o, resp.Status, resp.Body)
 }
 

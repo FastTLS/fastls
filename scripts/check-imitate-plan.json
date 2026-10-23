@@ -15,7 +15,7 @@
         "-s",
         "scripts",
         "-p",
-        "test_verify_imitate.py"
+        "test_*.py"
       ],
       "required": true
     },
@@ -243,7 +243,7 @@
         "test",
         "./_tests",
         "-run",
-        "^(TestH2SettingsStringCompleteness|TestH2SettingsStringLimitations|TestHTTP2SettingsStringOverride|TestParseH2SettingsStringWithPHeaderOrder|TestNO_RFC7540_PRIORITIES|TestUnknownSettingID|TestJa4FingerprintType|TestJa4FingerprintValue|TestJa4FingerprintIsEmpty|TestOptionsIsJa4|TestOptionsGetFingerprintType|TestOptionsGetFingerprintValue|TestJa4FingerprintInterface)$",
+        "^(TestH2SettingsStringCompleteness|TestH2SettingsStringLimitations|TestHTTP2SettingsStringOverride|TestParseH2SettingsStringWithPHeaderOrder|TestNO_RFC7540_PRIORITIES|TestUnknownSettingID|TestJa4FingerprintType|TestJa4FingerprintValue|TestJa4FingerprintIsEmpty|TestOptionsIsJa4|TestOptionsGetFingerprintType|TestOptionsGetFingerprintValue|TestJa4FingerprintInterface|TestPeetValidation)$",
         "-count=1",
         "-timeout",
         "60s",
@@ -576,11 +576,11 @@
   "excluded": [
     {
       "path": "_tests/ja3_custom_test.go",
-      "reason": "network/service/WS or mixed file; explicit selection required before execution"
+      "reason": "explicit network suite: python scripts/check-peet.py; FASTLS_PEET_NETWORK=1 required"
     },
     {
       "path": "_tests/stdlib_fingerprint_test.go",
-      "reason": "network/service/WS or mixed file; explicit selection required before execution"
+      "reason": "explicit network suite: python scripts/check-peet.py; FASTLS_PEET_NETWORK=1 required"
     },
     {
       "path": "../fhttp/http2/h2demo",

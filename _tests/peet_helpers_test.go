@@ -4,10 +4,13 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	stdhttp "net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -33,18 +36,55 @@ type peetResponse struct {
 }
 
 type peetObservation struct {
-	Test        string          `json:"test"`
-	Endpoint    string          `json:"endpoint"`
-	StartedAt   string          `json:"started_at"`
-	DurationMS  int64           `json:"duration_ms"`
-	Status      string          `json:"status"`
-	HTTPStatus  int             `json:"http_status"`
-	InputJA3    string          `json:"input_ja3,omitempty"`
-	ExpectedJA3 string          `json:"expected_ja3,omitempty"`
-	RequestedUA string          `json:"requested_user_agent"`
-	Observed    peetResponse    `json:"observed"`
-	Response    json.RawMessage `json:"response,omitempty"`
-	Error       string          `json:"error,omitempty"`
+	Test             string              `json:"test"`
+	Endpoint         string              `json:"endpoint"`
+	StartedAt        string              `json:"started_at"`
+	DurationMS       int64               `json:"duration_ms"`
+	Status           string              `json:"status"`
+	HTTPStatus       int                 `json:"http_status"`
+	InputJA3         string              `json:"input_ja3,omitempty"`
+	ExpectedJA3      string              `json:"expected_ja3,omitempty"`
+	RequestedUA      string              `json:"requested_user_agent"`
+	Observed         peetResponse        `json:"observed"`
+	Response         json.RawMessage     `json:"response,omitempty"`
+	ResponseText     string              `json:"response_text,omitempty"`
+	Error            string              `json:"error,omitempty"`
+	ErrorStage       string              `json:"error_stage,omitempty"`
+	ErrorType        string              `json:"error_type,omitempty"`
+	UnexpectedEOF    bool                `json:"unexpected_eof"`
+	BodyBytes        int                 `json:"body_bytes"`
+	ReadComplete     bool                `json:"read_complete"`
+	Protocol         string              `json:"protocol,omitempty"`
+	ContentLength    *int64              `json:"content_length,omitempty"`
+	TransferEncoding []string            `json:"transfer_encoding,omitempty"`
+	Uncompressed     *bool               `json:"automatically_decompressed,omitempty"`
+	ResponseHeaders  map[string][]string `json:"response_headers,omitempty"`
+}
+
+func peetError(o *peetObservation, stage string, err error) error {
+	o.Error, o.ErrorStage, o.ErrorType = err.Error(), stage, fmt.Sprintf("%T", err)
+	o.UnexpectedEOF = errors.Is(err, io.ErrUnexpectedEOF)
+	return err
+}
+
+func capturePeetStdResponse(o *peetObservation, resp *stdhttp.Response) {
+	o.Protocol = resp.Proto
+	o.ResponseHeaders = resp.Header.Clone()
+	o.ContentLength = &resp.ContentLength
+	o.TransferEncoding = append([]string(nil), resp.TransferEncoding...)
+	o.Uncompressed = &resp.Uncompressed
+}
+
+func capturePeetFastlsHeaders(o *peetObservation, headers map[string]string) {
+	o.ResponseHeaders = make(map[string][]string, len(headers))
+	for name, value := range headers {
+		o.ResponseHeaders[name] = []string{value}
+		if strings.EqualFold(name, "Content-Length") {
+			if n, err := strconv.ParseInt(value, 10, 64); err == nil {
+				o.ContentLength = &n
+			}
+		}
+	}
 }
 
 func startPeet(t *testing.T, input, expected string) *peetObservation {
@@ -111,27 +151,35 @@ func validatePeet(body []byte, expected, ua string) (peetResponse, error) {
 
 func finishPeet(t *testing.T, o *peetObservation, status int, reader io.Reader) {
 	t.Helper()
-	o.HTTPStatus = status
-	body, err := io.ReadAll(io.LimitReader(reader, 2*1024*1024+1))
-	if err != nil {
-		o.Error = err.Error()
-		t.Fatal(err)
-	}
-	if len(body) > 2*1024*1024 {
-		o.Error = "peet response exceeds 2 MiB"
-		t.Fatal(o.Error)
-	}
-	if json.Valid(body) {
-		o.Response = append([]byte(nil), body...)
-	}
-	if status != 200 {
-		o.Error = fmt.Sprintf("peet returned HTTP %d", status)
-		t.Fatal(o.Error)
-	}
-	o.Observed, err = validatePeet(body, o.ExpectedJA3, o.RequestedUA)
-	if err != nil {
-		o.Error = err.Error()
+	if err := readPeetResponse(o, status, reader); err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("endpoint=%s HTTP=%s TLS=%s JA3=%s JA3_HASH=%s JA4=%s JA4R=%s Akamai=%s", peetURL, o.Observed.HTTPVersion, o.Observed.TLS.Negotiated, o.Observed.TLS.JA3, o.Observed.TLS.JA3Hash, o.Observed.TLS.JA4, o.Observed.TLS.JA4R, o.Observed.HTTP2.Akamai)
+}
+
+func readPeetResponse(o *peetObservation, status int, reader io.Reader) error {
+	o.HTTPStatus = status
+	body, err := io.ReadAll(io.LimitReader(reader, 2*1024*1024+1))
+	o.BodyBytes = len(body)
+	// Preserve partial data before returning the read error.
+	if json.Valid(body) {
+		o.Response = append([]byte(nil), body...)
+	} else {
+		o.ResponseText = string(body)
+	}
+	if err != nil {
+		return peetError(o, "body_read", err)
+	}
+	if len(body) > 2*1024*1024 {
+		return peetError(o, "body_limit", fmt.Errorf("peet response exceeds 2 MiB"))
+	}
+	o.ReadComplete = true
+	if status != 200 {
+		return peetError(o, "http_status", fmt.Errorf("peet returned HTTP %d", status))
+	}
+	o.Observed, err = validatePeet(body, o.ExpectedJA3, o.RequestedUA)
+	if err != nil {
+		return peetError(o, "response_validation", err)
+	}
+	return nil
 }

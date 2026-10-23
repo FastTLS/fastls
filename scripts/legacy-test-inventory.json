@@ -47,7 +47,8 @@
     {
       "file": "_tests/stdlib_fingerprint_test.go",
       "tests": [
-        "TestGoStdlibFingerprint"
+        "TestGoStdlibFingerprint",
+        "TestFastlsStdlibFingerprint"
       ],
       "selected_offline": [],
       "reason": "network/service/WS or mixed file; explicit selection required before execution"
@@ -83,6 +84,22 @@
         "TestJa4FingerprintInterface"
       ],
       "reason": "backend fingerprint type checks retained after removing browser wrappers"
+    },
+    {
+      "file": "_tests/peet_helpers_test.go",
+      "tests": [],
+      "selected_offline": [],
+      "reason": "offline validation of network evidence; helper does not initiate requests"
+    },
+    {
+      "file": "_tests/peet_validation_test.go",
+      "tests": [
+        "TestPeetValidation"
+      ],
+      "selected_offline": [
+        "TestPeetValidation"
+      ],
+      "reason": "offline validation of network evidence; helper does not initiate requests"
     }
   ]
 }

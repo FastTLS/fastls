@@ -22,10 +22,11 @@ func TestGoStdlibFingerprint(t *testing.T) {
 	req.Header.Set("Accept", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
-		o.Error = err.Error()
+		peetError(o, "request", err)
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
+	capturePeetStdResponse(o, resp)
 	finishPeet(t, o, resp.StatusCode, resp.Body)
 }
 
@@ -37,8 +38,9 @@ func TestFastlsStdlibFingerprint(t *testing.T) {
 		defer resp.Body.Close()
 	}
 	if err != nil {
-		o.Error = err.Error()
+		peetError(o, "request", err)
 		t.Fatal(err)
 	}
+	capturePeetFastlsHeaders(o, resp.Headers)
 	finishPeet(t, o, resp.Status, resp.Body)
 }

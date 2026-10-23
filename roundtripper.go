@@ -36,6 +36,7 @@ type roundTripper struct {
 	http2Settings     *http2.HTTP2Settings
 
 	dialer          proxy.ContextDialer
+	transportMu     sync.Mutex
 	stdlibMu        sync.Mutex
 	stdlibTransport *stdhttp.Transport
 }
@@ -69,22 +70,34 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		req.Header["User-Agent"] = []string{}
 	}
 	addr := rt.getDialTLSAddr(req)
-	if _, ok := rt.cachedTransports[addr]; !ok {
-		if err := rt.getTransport(req, addr); err != nil {
-			return nil, err
-		}
+	transport, err := rt.getTransport(req, addr)
+	if err != nil {
+		return nil, err
 	}
-	return rt.cachedTransports[addr].RoundTrip(req)
+	return transport.RoundTrip(req)
 }
 
-func (rt *roundTripper) getTransport(req *http.Request, addr string) error {
+func (rt *roundTripper) getTransport(req *http.Request, addr string) (http.RoundTripper, error) {
+	// Serialize protocol discovery while permitting requests to use an already
+	// published transport concurrently. Map access shares dialTLS's mutex.
+	rt.transportMu.Lock()
+	defer rt.transportMu.Unlock()
+	rt.Lock()
+	transport := rt.cachedTransports[addr]
+	rt.Unlock()
+	if transport != nil {
+		return transport, nil
+	}
 	switch strings.ToLower(req.URL.Scheme) {
 	case "http":
-		rt.cachedTransports[addr] = &http.Transport{DialContext: rt.dialer.DialContext, DisableKeepAlives: true}
-		return nil
+		transport = &http.Transport{DialContext: rt.dialer.DialContext, DisableKeepAlives: true}
+		rt.Lock()
+		rt.cachedTransports[addr] = transport
+		rt.Unlock()
+		return transport, nil
 	case "https":
 	default:
-		return fmt.Errorf("invalid URL scheme: [%v]", req.URL.Scheme)
+		return nil, fmt.Errorf("invalid URL scheme: [%v]", req.URL.Scheme)
 	}
 
 	// 检查是否应该使用 HTTP/3 (QUIC)
@@ -95,8 +108,10 @@ func (rt *roundTripper) getTransport(req *http.Request, addr string) error {
 		if strings.HasPrefix(fpValue, "q") {
 			// 使用 HTTP/3 (QUIC)
 			h3Transport := newHTTP3Transport(rt.Fingerprint, rt.UserAgent, rt.Cookies, rt.dialer)
+			rt.Lock()
 			rt.cachedTransports[addr] = h3Transport
-			return nil
+			rt.Unlock()
+			return h3Transport, nil
 		}
 	}
 
@@ -107,10 +122,13 @@ func (rt *roundTripper) getTransport(req *http.Request, addr string) error {
 		// Should never happen.
 		panic("dialTLS returned no error when determining cachedTransports")
 	default:
-		return err
+		return nil, err
 	}
 
-	return nil
+	rt.Lock()
+	transport = rt.cachedTransports[addr]
+	rt.Unlock()
+	return transport, nil
 }
 
 func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -120,6 +138,9 @@ func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.
 	// If we have the connection from when we determined the HTTPS
 	// cachedTransports to use, return that.
 	if conn := rt.cachedConnections[addr]; conn != nil {
+		// This is a one-time handoff of the ALPN discovery connection. Once
+		// handed over, only the HTTP transport owns its lifetime and reuse.
+		delete(rt.cachedConnections, addr)
 		return conn, nil
 	}
 	rawConn, err := rt.dialer.DialContext(ctx, network, addr)
@@ -298,9 +319,22 @@ func (rt *roundTripper) CloseIdleConnections() {
 	if transport != nil {
 		transport.CloseIdleConnections()
 	}
-	for addr, conn := range rt.cachedConnections {
+	rt.Lock()
+	connections := rt.cachedConnections
+	rt.cachedConnections = make(map[string]net.Conn)
+	transports := make([]http.RoundTripper, 0, len(rt.cachedTransports))
+	for _, t := range rt.cachedTransports {
+		transports = append(transports, t)
+	}
+	rt.Unlock()
+	// Only discovery connections still awaiting handoff belong to this cache.
+	for _, conn := range connections {
 		_ = conn.Close()
-		delete(rt.cachedConnections, addr)
+	}
+	for _, t := range transports {
+		if closer, ok := t.(interface{ CloseIdleConnections() }); ok {
+			closer.CloseIdleConnections()
+		}
 	}
 }
 

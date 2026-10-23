@@ -22,6 +22,24 @@ go vet ./...
 
 进入 `profile/` 后单独运行 `go test ./... -count=1 -timeout 60s`。`_tests/` 的纯配置检查须使用显式选择，见其 [说明](./_tests/README.md)，避免误跑公网观测。
 
+## peet 公网验证与完整报告
+
+在核心目录运行：
+
+```sh
+python scripts/check-peet.py
+```
+
+该入口使用当前本地 go.work，重新执行核心 test/build/vet、profile、纯配置、报告工具与报告单元测试，再实际访问 `https://tls.peet.ws/api/all`。公网部分包括自定义 JA3、带0/空点格式、Go标准库和Fastls无指纹路径，共5个请求；每个请求限时20秒，无自动重试，不使用环境代理。
+
+每次在外层 reports 下新建目录，保存 HTML、Markdown、JSON、JUnit、原始执行日志、逐请求响应和运行清单。观测记录包含输入/预期/实际JA3、JA3 hash、JA4/JA4R、协商协议、Akamai指纹与UA；自定义配置严格比较完整JA3，标准库只验证观测有效性，不固定随Go版本变化的指纹。报告中的原始响应包含服务返回的出口IP等信息。
+
+读取失败时也保存已读字节、部分响应和错误阶段。原生 Go 响应额外记录 HTTP 协议、ContentLength、传输编码、自动解压标志和响应头；Fastls 旧 Response 接口只提供部分元信息，缺失项保持未知。自动解压后 ContentLength 可能为 -1，不能直接当作线上原始长度比较。
+
+连接生命周期回归在 `connection_lifecycle_test.go`：覆盖同一指纹客户端连续请求、同站跳转、HTTP1/HTTP2关闭空闲后重连、保留活跃响应及并发访问。ALPN探测连接只交接一次，后续连接由HTTP传输层管理。GOST启动检查须完成真实代理请求，不使用只连接端口就关闭的探测。
+
+普通离线计划不会请求公网。测试通过仅表示此次请求与所声明断言成功，不等于真实浏览器全部行为一致；代理、WS/H3、race和Linux实测沿用各自专门验收。
+
 ## 跨仓验收
 
 在包含 fastls、fhttp、imitate 和 fastls-lab 的外层工作区执行：

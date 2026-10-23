@@ -121,6 +121,10 @@ func TestReportRebuildIsOfflineAndEscapesInput(t *testing.T) {
 	if strings.Contains(string(html), "<script>alert(1)</script>") || !strings.Contains(string(html), "&lt;script&gt;") {
 		t.Fatal("unescaped HTML in report")
 	}
+	markdown, err := os.ReadFile(filepath.Join(dir, "summary.md"))
+	if err != nil || !strings.Contains(string(markdown), report.Results[0].Message) {
+		t.Fatal("Markdown lost the check details")
+	}
 	junit, _ := os.ReadFile(filepath.Join(dir, "junit.xml"))
 	if !strings.Contains(string(junit), `failures="1"`) {
 		t.Fatal("JUnit lost failure")

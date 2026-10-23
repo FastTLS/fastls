@@ -2,9 +2,11 @@ package integration
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"io"
 	"net"
+	stdhttp "net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -86,19 +88,32 @@ func TestGOSTProxy(t *testing.T) {
 					t.Fatal(err)
 				}
 				t.Cleanup(func() { cmd.Process.Kill(); cmd.Wait(); log.Close() })
+				endpoint.Scheme = scheme
+				// Complete a real proxy request. A bare TCP connect-and-close
+				// leaves SOCKS greeting parsing at EOF and creates false errors.
+				readyTransport := &stdhttp.Transport{
+					Proxy:           stdhttp.ProxyURL(endpoint),
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // Local GOST test certificate only.
+				}
+				defer readyTransport.CloseIdleConnections()
+				readyClient := &stdhttp.Client{Transport: readyTransport, Timeout: time.Second}
 				deadline := time.Now().Add(10 * time.Second)
+				var readyErr error
 				for {
-					conn, dialErr := net.DialTimeout("tcp", addr, 100*time.Millisecond)
-					if dialErr == nil {
-						conn.Close()
-						break
+					resp, err := readyClient.Get(lab.HTTP + "/inspect")
+					readyErr = err
+					if err == nil {
+						_, readyErr = io.Copy(io.Discard, resp.Body)
+						resp.Body.Close()
+						if readyErr == nil && resp.StatusCode == stdhttp.StatusOK {
+							break
+						}
 					}
 					if time.Now().After(deadline) {
-						t.Fatal("GOST did not start")
+						t.Fatalf("GOST did not complete a readiness request: %v", readyErr)
 					}
 					time.Sleep(20 * time.Millisecond)
 				}
-				endpoint.Scheme = scheme
 				for _, provider := range providers {
 					for _, target := range []struct{ name, address string }{{"http1", lab.HTTP}, {"tls-http1", lab.HTTPS}, {"tls-http2", lab.HTTPS2}} {
 						t.Run(provider.name+"/"+target.name, func(t *testing.T) {

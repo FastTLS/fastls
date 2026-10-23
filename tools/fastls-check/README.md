@@ -13,3 +13,5 @@ Windows：`./scripts/check.ps1 -ReportOnly <绝对路径>/results.json`。Linux�
 默认 `scripts/check-plan.json` 是初始离线计划：包含核心、独立工具、lab和显式选择的 `_tests` 纯配置用例；未迁移的三个旧服务明确记为未执行。`scripts/legacy-test-inventory.json` 只保留现有测试清单。
 
 完整生成器边界和发包验收通过 `python scripts/verify-imitate.py --all` 编排 `scripts/check-imitate-plan.json`；后者需要编排器准备的候选代理、缓存和环境，不能直接当成默认计划运行。GOST专项、race、Linux实际运行及发布须按各项实际结果判断。见 [开发说明](../../DEVELOPMENT.md)。
+
+公网peet验证使用 `python scripts/check-peet.py`，该入口记录当前工作区模块和逐请求观测，再通过本工具离线渲染HTML/Markdown/JSON/JUnit。报告的Markdown摘要也保留各项观测说明与证据链接。
