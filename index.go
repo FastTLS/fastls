@@ -58,6 +58,8 @@ type requestContext struct {
 
 // Response 包含 Fastls 响应数据
 type Response struct {
+	// RequestHasBody describes the final request after redirects.
+	RequestHasBody   bool
 	Status           int
 	Body             io.ReadCloser
 	Headers          map[string]string
@@ -213,7 +215,8 @@ func dispatcher(res *requestContext) (response Response, err error) {
 			headers[name] = values[0]
 		}
 	}
-	return Response{Status: resp.StatusCode, Body: resp.Body, Headers: headers, Client: res.client, HeaderValues: headerValues}, nil
+	hasBody := resp.Request != nil && resp.Request.Body != nil && resp.Request.Body != http.NoBody
+	return Response{Status: resp.StatusCode, Body: resp.Body, Headers: headers, Client: res.client, HeaderValues: headerValues, RequestHasBody: hasBody}, nil
 
 }
 
