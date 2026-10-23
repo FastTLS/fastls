@@ -22,6 +22,7 @@ type browser struct {
 	Fingerprint          Fingerprint
 	UserAgent            string
 	Cookies              []Cookie
+	CookieJar            http.CookieJar
 	HTTP2Settings        *http2.HTTP2Settings
 }
 
@@ -35,6 +36,7 @@ func clientBuilder(browser browser, dialer proxy.ContextDialer, timeout int, dis
 		timeout = 15
 	}
 	client := http.Client{
+		Jar:       browser.CookieJar,
 		Transport: newRoundTripper(browser, dialer),
 		Timeout:   time.Duration(timeout) * time.Second,
 	}

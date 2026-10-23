@@ -38,6 +38,7 @@ type Options struct {
 	UserAgent            string               `json:"userAgent"`
 	Proxy                string               `json:"proxy"`
 	Cookies              []Cookie             `json:"cookies"`
+	CookieJar            http.CookieJar       `json:"-"`
 	Timeout              int                  `json:"timeout"`
 	DisableRedirect      bool                 `json:"disableRedirect"`
 	// VerifyTLS enables certificate verification for fingerprinted TCP TLS requests.
@@ -57,10 +58,11 @@ type requestContext struct {
 
 // Response 包含 Fastls 响应数据
 type Response struct {
-	Status  int
-	Body    io.ReadCloser
-	Headers map[string]string
-	Client  http.Client
+	Status       int
+	Body         io.ReadCloser
+	Headers      map[string]string
+	Client       http.Client
+	HeaderValues map[string][]string
 }
 
 // JSONBody 将响应体转换为 JSON，如果转换失败则返回错误
@@ -123,6 +125,7 @@ func processRequest(options *Options, shared ...http.Client) (*requestContext, e
 		UserAgent:            options.UserAgent,
 		FingerprintUserAgent: options.FingerprintUserAgent,
 		Cookies:              options.Cookies,
+		CookieJar:            options.CookieJar,
 		HTTP2Settings:        options.HTTP2Settings,
 	}
 
@@ -190,22 +193,25 @@ func dispatcher(res *requestContext) (response Response, err error) {
 
 		headers := make(map[string]string)
 		// parsedError.ErrorMsg + "-> \n" + string(err.Error())
-		return Response{
-			parsedError.StatusCode, io.NopCloser(bytes.NewBufferString(parsedError.ErrorMsg)), headers, res.client,
-		}, err
+		return Response{Status: parsedError.StatusCode, Body: io.NopCloser(bytes.NewBufferString(parsedError.ErrorMsg)), Headers: headers, Client: res.client}, err
 
 	}
 
 	headers := make(map[string]string)
+	headerValues := make(map[string][]string)
 
 	for name, values := range resp.Header {
+		headerValues[name] = append([]string{}, values...)
+		if len(values) == 0 {
+			continue
+		}
 		if name == "Set-Cookie" {
 			headers[name] = strings.Join(values, "/,/")
 		} else {
 			headers[name] = values[0]
 		}
 	}
-	return Response{resp.StatusCode, resp.Body, headers, res.client}, nil
+	return Response{Status: resp.StatusCode, Body: resp.Body, Headers: headers, Client: res.client, HeaderValues: headerValues}, nil
 
 }
 

@@ -32,6 +32,9 @@ type RequestOptions struct {
 // NewSession fixes the transport identity. Set request deadlines through DoContext's context;
 // Options.Timeout does not apply to reusable sessions.
 func NewSession(options Options) (*Session, error) {
+	if options.CookieJar == nil {
+		options.CookieJar = NewCookieStore()
+	}
 	if options.Profile != nil {
 		cloned := profile.Clone(*options.Profile)
 		options.Profile = &cloned
@@ -89,6 +92,18 @@ func (s *Session) DoContext(ctx context.Context, url string, request RequestOpti
 		opts.Headers[name] = value
 	}
 	client := s.client // Transport is shared; redirect policy is local to the request.
+	for name := range opts.HeaderValues {
+		if strings.EqualFold(name, "Cookie") {
+			client.Jar = outgoingCookieOverride{CookieJar: client.Jar}
+			break
+		}
+	}
+	for name := range opts.Headers {
+		if strings.EqualFold(name, "Cookie") {
+			client.Jar = outgoingCookieOverride{CookieJar: client.Jar}
+			break
+		}
+	}
 	client.CheckRedirect = nil
 	if request.DisableRedirect {
 		client.CheckRedirect = disabledRedirect
