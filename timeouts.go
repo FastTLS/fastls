@@ -12,7 +12,7 @@ import (
 
 // Timeouts applies per redirect hop; zero disables the corresponding phase limit.
 // The request context remains the overall deadline, including consumer pauses.
-type Timeouts struct{ Connect, Headers, Read time.Duration }
+type Timeouts struct{ Connect, Headers, Read, Write time.Duration }
 
 type TimeoutError struct{ Phase string }
 
@@ -80,7 +80,7 @@ func (t *requestTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 			}
 			p.gotFirst = true
 		},
-		GotConn: func(httptrace.GotConnInfo) { p.mu.Lock(); defer p.mu.Unlock(); p.armLocked("connect", 0) },
+		GotConn: func(httptrace.GotConnInfo) { p.mu.Lock(); defer p.mu.Unlock(); p.armLocked("write", p.limits.Write) },
 		WroteRequest: func(info httptrace.WroteRequestInfo) {
 			if info.Err == nil {
 				p.mu.Lock()
@@ -90,6 +90,11 @@ func (t *requestTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		},
 	}
 	req = req.Clone(httptrace.WithClientTrace(ctx, trace))
+	if req.Body != nil && t.limits.Write > 0 {
+		req.Body = &uploadPhaseBody{ReadCloser: req.Body, clock: p}
+		stopBody := context.AfterFunc(ctx, func() { req.Body.Close() })
+		defer stopBody()
+	}
 	response, err := t.base.RoundTrip(req)
 	p.mu.Lock()
 	p.finished = true
@@ -112,6 +117,23 @@ func (t *requestTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	}
 	response.Body = &phaseBody{ReadCloser: response.Body, ctx: ctx, cancel: cancel, timeout: t.limits.Read}
 	return response, nil
+}
+
+// Write inactivity includes waiting for the producer and transport consumption.
+// Reset only when transport consumes data, never when the caller queues data.
+type uploadPhaseBody struct {
+	io.ReadCloser
+	clock *phaseClock
+}
+
+func (b *uploadPhaseBody) Read(dst []byte) (int, error) {
+	n, err := b.ReadCloser.Read(dst)
+	if n > 0 {
+		b.clock.mu.Lock()
+		b.clock.armLocked("write", b.clock.limits.Write)
+		b.clock.mu.Unlock()
+	}
+	return n, err
 }
 
 // Only a blocked network-body Read is timed; time spent in the caller is excluded.

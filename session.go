@@ -30,6 +30,9 @@ type RequestOptions struct {
 	MaxDecodedBytes int64
 	Headers         map[string]string
 	Body            string
+	// BodyReader is a one-shot stream. Redirects requiring body replay are returned.
+	// Its Close must unblock Read when the request is cancelled.
+	BodyReader      io.ReadCloser
 	DisableRedirect bool
 }
 
@@ -60,7 +63,10 @@ func NewSession(options Options) (*Session, error) {
 }
 
 func (s *Session) DoContext(ctx context.Context, url string, request RequestOptions, method string) (Response, error) {
-	for _, limit := range []time.Duration{request.Timeouts.Connect, request.Timeouts.Headers, request.Timeouts.Read} {
+	if request.BodyReader != nil && request.Body != "" {
+		return Response{}, errors.New("Body and BodyReader are mutually exclusive")
+	}
+	for _, limit := range []time.Duration{request.Timeouts.Connect, request.Timeouts.Headers, request.Timeouts.Read, request.Timeouts.Write} {
 		if limit < 0 || limit > 24*time.Hour {
 			return Response{}, errors.New("phase timeout must be 0..24 hours")
 		}
@@ -127,6 +133,13 @@ func (s *Session) DoContext(ctx context.Context, url string, request RequestOpti
 		return Response{}, err
 	}
 	prepared.req = prepared.req.WithContext(ctx)
+	if request.BodyReader != nil {
+		prepared.req.Body = request.BodyReader
+		prepared.req.GetBody = nil
+		prepared.req.ContentLength = -1
+		stopBody := context.AfterFunc(ctx, func() { request.BodyReader.Close() })
+		defer stopBody()
+	}
 	response, err := dispatcher(prepared)
 	if err != nil {
 		if response.Body != nil {
