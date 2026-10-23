@@ -6,9 +6,22 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 )
+
+type observedDuplexUpload struct {
+	io.ReadCloser
+	closed chan struct{}
+	once   sync.Once
+}
+
+func (b *observedDuplexUpload) Close() error {
+	err := b.ReadCloser.Close()
+	b.once.Do(func() { close(b.closed) })
+	return err
+}
 
 // The server sends headers before reading the request. A blocked producer must
 // still be closed by the write deadline, response Close, or session Close.
@@ -31,10 +44,11 @@ func TestDuplexEarlyHeadersUploadLifetime(t *testing.T) {
 			}
 			defer session.Close()
 			reader, writer := io.Pipe()
+			upload := &observedDuplexUpload{ReadCloser: reader, closed: make(chan struct{})}
 			defer writer.Close()
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			options := RequestOptions{BodyReader: reader, Duplex: true}
+			options := RequestOptions{BodyReader: upload, Duplex: true}
 			if mode == "write-timeout" {
 				options.Timeouts.Write = 150 * time.Millisecond
 			}
@@ -63,6 +77,13 @@ func TestDuplexEarlyHeadersUploadLifetime(t *testing.T) {
 			case <-done:
 			case <-ctx.Done():
 				t.Fatal("server did not observe cancellation")
+			}
+			// RST_STREAM and context.AfterFunc upload cleanup run independently.
+			// Observing server cancellation does not order the local Close callback.
+			select {
+			case <-upload.closed:
+			case <-ctx.Done():
+				t.Fatal("producer body was not closed after cancellation")
 			}
 			if _, err := writer.Write([]byte("late")); err != io.ErrClosedPipe {
 				t.Fatalf("producer wasn't unblocked: %v", err)
