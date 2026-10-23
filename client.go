@@ -1,6 +1,7 @@
 package fastls
 
 import (
+	"crypto/x509"
 	"github.com/FastTLS/fastls/profile"
 	http "github.com/FastTLS/fhttp"
 	"github.com/FastTLS/fhttp/http2"
@@ -12,6 +13,7 @@ import (
 
 type browser struct {
 	VerifyTLS            bool
+	TLSRootCAs           *x509.CertPool
 	Profile              *profile.Spec
 	FingerprintUserAgent string
 	Fingerprint          Fingerprint

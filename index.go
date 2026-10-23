@@ -3,6 +3,7 @@ package fastls
 import (
 	"bytes"
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"github.com/FastTLS/fastls/profile"
@@ -39,8 +40,10 @@ type Options struct {
 	DisableRedirect      bool                 `json:"disableRedirect"`
 	// VerifyTLS enables certificate verification for fingerprinted TCP TLS requests.
 	// The zero value preserves historical behavior; new integrations should set true.
-	VerifyTLS   bool     `json:"verifyTLS"`
-	HeaderOrder []string `json:"headerOrder"`
+	VerifyTLS bool `json:"verifyTLS"`
+	// TLSRootCAs optionally replaces system roots for fingerprinted TCP TLS.
+	TLSRootCAs  *x509.CertPool `json:"-"`
+	HeaderOrder []string       `json:"headerOrder"`
 }
 
 // requestContext 包含请求、客户端和选项的完整上下文
@@ -110,6 +113,7 @@ func processRequest(options *Options) (*requestContext, error) {
 
 	var browser = browser{
 		VerifyTLS:            options.VerifyTLS,
+		TLSRootCAs:           options.TLSRootCAs,
 		Fingerprint:          options.Fingerprint,
 		Profile:              options.Profile,
 		UserAgent:            options.UserAgent,

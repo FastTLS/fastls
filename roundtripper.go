@@ -2,6 +2,7 @@ package fastls
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"github.com/FastTLS/fastls/internal/compiler"
@@ -23,6 +24,7 @@ var errProtocolNegotiated = errors.New("protocol negotiated")
 
 type roundTripper struct {
 	VerifyTLS            bool
+	TLSRootCAs           *x509.CertPool
 	Profile              *profile.Spec
 	FingerprintUserAgent string
 	sync.Mutex
@@ -164,7 +166,7 @@ func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.
 		return nil, err
 	}
 
-	conn := utls.UClient(rawConn, &utls.Config{ServerName: host, OmitEmptyPsk: true, InsecureSkipVerify: !rt.VerifyTLS}, // MinVersion:         tls.VersionTLS10,
+	conn := utls.UClient(rawConn, &utls.Config{ServerName: host, OmitEmptyPsk: true, InsecureSkipVerify: !rt.VerifyTLS, RootCAs: rt.TLSRootCAs}, // MinVersion:         tls.VersionTLS10,
 		// MaxVersion:         tls.VersionTLS13,
 
 		utls.HelloCustom)
@@ -341,8 +343,9 @@ func (rt *roundTripper) CloseIdleConnections() {
 func newRoundTripper(browser browser, dialer ...proxy.ContextDialer) http.RoundTripper {
 	if len(dialer) > 0 {
 		return &roundTripper{
-			VerifyTLS: browser.VerifyTLS,
-			dialer:    dialer[0],
+			VerifyTLS:  browser.VerifyTLS,
+			TLSRootCAs: browser.TLSRootCAs,
+			dialer:     dialer[0],
 
 			Fingerprint:          browser.Fingerprint,
 			Profile:              browser.Profile,
@@ -356,8 +359,9 @@ func newRoundTripper(browser browser, dialer ...proxy.ContextDialer) http.RoundT
 	}
 
 	return &roundTripper{
-		VerifyTLS: browser.VerifyTLS,
-		dialer:    proxy.Direct,
+		VerifyTLS:  browser.VerifyTLS,
+		TLSRootCAs: browser.TLSRootCAs,
+		dialer:     proxy.Direct,
 
 		Fingerprint:          browser.Fingerprint,
 		Profile:              browser.Profile,
