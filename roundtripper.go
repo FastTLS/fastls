@@ -14,9 +14,11 @@ import (
 	"time"
 
 	stdhttp "net/http"
+	stdtrace "net/http/httptrace"
 
 	http "github.com/FastTLS/fhttp"
 	http2 "github.com/FastTLS/fhttp/http2"
+	"github.com/FastTLS/fhttp/httptrace"
 	utls "github.com/refraction-networking/utls"
 	"golang.org/x/net/proxy"
 )
@@ -112,7 +114,7 @@ func (rt *roundTripper) getTransport(req *http.Request, addr string) (http.Round
 	}
 	switch strings.ToLower(req.URL.Scheme) {
 	case "http":
-		transport = &http.Transport{DialContext: rt.dialer.DialContext, DisableKeepAlives: !rt.KeepAlive, MaxIdleConns: 8, MaxIdleConnsPerHost: 8, IdleConnTimeout: 90 * time.Second}
+		transport = &http.Transport{DialContext: rt.dialer.DialContext, DisableCompression: rt.KeepAlive, DisableKeepAlives: !rt.KeepAlive, MaxIdleConns: 8, MaxIdleConnsPerHost: 8, IdleConnTimeout: 90 * time.Second}
 		rt.Lock()
 		rt.cachedTransports[addr] = transport
 		rt.Unlock()
@@ -224,17 +226,18 @@ func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.
 			browserType = parseUserAgent(rt.protocolUserAgent())
 		}
 		t2 := http2.Transport{
-			DialTLSContext:  rt.dialTLSHTTP2Context,
-			IdleConnTimeout: 90 * time.Second,
-			DialTLS:         rt.dialTLSHTTP2,
-			PushHandler:     &http2.DefaultPushHandler{},
-			Navigator:       browserType,
-			HTTP2Settings:   rt.http2Settings,
+			DisableCompression: rt.KeepAlive,
+			DialTLSContext:     rt.dialTLSHTTP2Context,
+			IdleConnTimeout:    90 * time.Second,
+			DialTLS:            rt.dialTLSHTTP2,
+			PushHandler:        &http2.DefaultPushHandler{},
+			Navigator:          browserType,
+			HTTP2Settings:      rt.http2Settings,
 		}
 		rt.cachedTransports[key] = &t2
 	default:
 		// Assume the remote peer is speaking HTTP 1.x + TLS.
-		rt.cachedTransports[key] = &http.Transport{DialTLSContext: rt.dialTLS, DisableKeepAlives: !rt.KeepAlive, MaxIdleConns: 8, MaxIdleConnsPerHost: 8, IdleConnTimeout: 90 * time.Second}
+		rt.cachedTransports[key] = &http.Transport{DialTLSContext: rt.dialTLS, DisableCompression: rt.KeepAlive, DisableKeepAlives: !rt.KeepAlive, MaxIdleConns: 8, MaxIdleConnsPerHost: 8, IdleConnTimeout: 90 * time.Second}
 	}
 
 	// Stash the connection just established for use servicing the
@@ -266,7 +269,23 @@ type stdlibTransportAdapter struct {
 
 func (a *stdlibTransportAdapter) RoundTrip(req *http.Request) (*http.Response, error) {
 	// 将 fhttp.Request 转换为标准库的 http.Request
-	stdReq, err := stdhttp.NewRequestWithContext(req.Context(), req.Method, req.URL.String(), req.Body)
+	ctx := req.Context()
+	if trace := httptrace.ContextClientTrace(ctx); trace != nil {
+		ctx = stdtrace.WithClientTrace(ctx, &stdtrace.ClientTrace{
+			GetConn: trace.GetConn,
+			GotConn: func(info stdtrace.GotConnInfo) {
+				if trace.GotConn != nil {
+					trace.GotConn(httptrace.GotConnInfo{Conn: info.Conn, Reused: info.Reused, WasIdle: info.WasIdle, IdleTime: info.IdleTime})
+				}
+			},
+			WroteRequest: func(info stdtrace.WroteRequestInfo) {
+				if trace.WroteRequest != nil {
+					trace.WroteRequest(httptrace.WroteRequestInfo{Err: info.Err})
+				}
+			},
+		})
+	}
+	stdReq, err := stdhttp.NewRequestWithContext(ctx, req.Method, req.URL.String(), req.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +341,7 @@ func (a *stdlibTransportAdapter) RoundTrip(req *http.Request) (*http.Response, e
 func (rt *roundTripper) roundTripWithStdlib(req *http.Request) (*http.Response, error) {
 	rt.stdlibMu.Lock()
 	if rt.stdlibTransport == nil {
-		rt.stdlibTransport = &stdhttp.Transport{DialContext: rt.dialer.DialContext}
+		rt.stdlibTransport = &stdhttp.Transport{DialContext: rt.dialer.DialContext, DisableCompression: rt.KeepAlive}
 	}
 	transport := rt.stdlibTransport
 	rt.stdlibMu.Unlock()

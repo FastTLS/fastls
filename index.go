@@ -58,11 +58,13 @@ type requestContext struct {
 
 // Response 包含 Fastls 响应数据
 type Response struct {
-	Status       int
-	Body         io.ReadCloser
-	Headers      map[string]string
-	Client       http.Client
-	HeaderValues map[string][]string
+	Status           int
+	Body             io.ReadCloser
+	Headers          map[string]string
+	Client           http.Client
+	HeaderValues     map[string][]string
+	WireHeaderValues map[string][]string
+	Decoded          bool
 }
 
 // JSONBody 将响应体转换为 JSON，如果转换失败则返回错误

@@ -7,6 +7,7 @@ import (
 	"maps"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/FastTLS/fastls/profile"
 	http "github.com/FastTLS/fhttp"
@@ -24,6 +25,9 @@ type Session struct {
 
 // RequestOptions contains fields which may vary without changing the transport identity.
 type RequestOptions struct {
+	Timeouts        Timeouts
+	DecodeContent   bool
+	MaxDecodedBytes int64
 	Headers         map[string]string
 	Body            string
 	DisableRedirect bool
@@ -56,6 +60,14 @@ func NewSession(options Options) (*Session, error) {
 }
 
 func (s *Session) DoContext(ctx context.Context, url string, request RequestOptions, method string) (Response, error) {
+	for _, limit := range []time.Duration{request.Timeouts.Connect, request.Timeouts.Headers, request.Timeouts.Read} {
+		if limit < 0 || limit > 24*time.Hour {
+			return Response{}, errors.New("phase timeout must be 0..24 hours")
+		}
+	}
+	if request.MaxDecodedBytes < 0 || request.MaxDecodedBytes > 1<<40 {
+		return Response{}, errors.New("max_decoded_bytes must be 1..1099511627776 or zero for default")
+	}
 	if ctx == nil {
 		return Response{}, errors.New("nil request context")
 	}
@@ -92,6 +104,7 @@ func (s *Session) DoContext(ctx context.Context, url string, request RequestOpti
 		opts.Headers[name] = value
 	}
 	client := s.client // Transport is shared; redirect policy is local to the request.
+	client.Transport = &requestTransport{base: client.Transport, limits: request.Timeouts}
 	for name := range opts.HeaderValues {
 		if strings.EqualFold(name, "Cookie") {
 			client.Jar = outgoingCookieOverride{CookieJar: client.Jar}
@@ -121,6 +134,13 @@ func (s *Session) DoContext(ctx context.Context, url string, request RequestOpti
 		}
 		release()
 		return response, err
+	}
+	if request.DecodeContent {
+		if err := decodeResponse(ctx, &response, strings.ToUpper(method), request.MaxDecodedBytes); err != nil {
+			response.Body.Close()
+			release()
+			return Response{}, err
+		}
 	}
 	response.Body = &sessionBody{ReadCloser: response.Body, release: release}
 	return response, nil

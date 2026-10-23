@@ -7,7 +7,7 @@ toolchain go1.24.11
 require (
  github.com/FastTLS/fastls/profile v0.1.0-dev.20261023.8
 	github.com/FastTLS/fhttp v0.1.0-dev.20261023.8
-	github.com/andybalholm/brotli v1.0.6
+	github.com/andybalholm/brotli v1.2.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/klauspost/compress v1.18.1
 	github.com/quic-go/quic-go v0.57.1
