@@ -33,7 +33,7 @@ type http3Transport struct {
 // RoundTrip 实现 http.RoundTripper 接口
 func (t *http3Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// 将 fhttp.Request 转换为标准库的 http.Request
-	stdReq, err := stdhttp.NewRequest(req.Method, req.URL.String(), req.Body)
+	stdReq, err := stdhttp.NewRequestWithContext(req.Context(), req.Method, req.URL.String(), req.Body)
 	if err != nil {
 		return nil, fmt.Errorf("创建标准库请求失败: %w", err)
 	}
@@ -133,17 +133,6 @@ func (t *http3Transport) dialQUIC(ctx context.Context, addr string) (*quic.Conn,
 		port = "443"
 	}
 
-	// 建立 UDP 连接（QUIC 基于 UDP）
-	udpAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(host, port))
-	if err != nil {
-		return nil, fmt.Errorf("解析 UDP 地址失败: %w", err)
-	}
-
-	udpConn, err := net.DialUDP("udp", nil, udpAddr)
-	if err != nil {
-		return nil, fmt.Errorf("建立 UDP 连接失败: %w", err)
-	}
-
 	// 配置 TLS
 	var tlsConfig *tls.Config
 	if t.Fingerprint != nil && !t.Fingerprint.IsEmpty() {
@@ -157,7 +146,6 @@ func (t *http3Transport) dialQUIC(ctx context.Context, addr string) (*quic.Conn,
 			// 解析 JA4R 获取 TLS 配置信息
 			spec, err := ParseJA4R(fpValue, t.UserAgent)
 			if err != nil {
-				udpConn.Close()
 				return nil, fmt.Errorf("解析 JA4R 指纹失败: %w", err)
 			}
 
@@ -178,7 +166,6 @@ func (t *http3Transport) dialQUIC(ctx context.Context, addr string) (*quic.Conn,
 			// 尝试解析 JA3 或其他格式
 			spec, err := StringToSpec(fpValue, t.UserAgent)
 			if err != nil {
-				udpConn.Close()
 				return nil, fmt.Errorf("解析指纹失败: %w", err)
 			}
 
@@ -205,9 +192,9 @@ func (t *http3Transport) dialQUIC(ctx context.Context, addr string) (*quic.Conn,
 	}
 
 	// 建立 QUIC 连接
-	quicConn, err := quic.Dial(ctx, udpConn, udpAddr, tlsConfig, &quic.Config{})
+	// 由 quic-go 创建并管理未连接的 UDP socket，包括失败和关闭时的释放。
+	quicConn, err := quic.DialAddr(ctx, net.JoinHostPort(host, port), tlsConfig, &quic.Config{})
 	if err != nil {
-		udpConn.Close()
 		return nil, fmt.Errorf("建立 QUIC 连接失败: %w", err)
 	}
 
@@ -226,17 +213,6 @@ func (t *http3Transport) dialQUICEarly(ctx context.Context, addr string, tlsCfg 
 	if err != nil {
 		host = addr
 		port = "443"
-	}
-
-	// 建立 UDP 连接（QUIC 基于 UDP）
-	udpAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(host, port))
-	if err != nil {
-		return nil, fmt.Errorf("解析 UDP 地址失败: %w", err)
-	}
-
-	udpConn, err := net.DialUDP("udp", nil, udpAddr)
-	if err != nil {
-		return nil, fmt.Errorf("建立 UDP 连接失败: %w", err)
 	}
 
 	// 如果没有提供 tlsCfg，使用默认配置
@@ -267,9 +243,8 @@ func (t *http3Transport) dialQUICEarly(ctx context.Context, addr string, tlsCfg 
 	}
 
 	// 建立 QUIC 连接（使用 DialEarly 支持 0-RTT）
-	quicConn, err := quic.DialEarly(ctx, udpConn, udpAddr, tlsCfg, cfg)
+	quicConn, err := quic.DialAddrEarly(ctx, net.JoinHostPort(host, port), tlsCfg, cfg)
 	if err != nil {
-		udpConn.Close()
 		return nil, fmt.Errorf("建立 QUIC 连接失败: %w", err)
 	}
 

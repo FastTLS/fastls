@@ -2,10 +2,13 @@ package fastls
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/FastTLS/fastls/profile"
 	"io"
 	"log"
+	"maps"
 	"net/url"
 	"strings"
 
@@ -15,22 +18,29 @@ import (
 
 // Options 设置 Fastls 客户端选项
 type Options struct {
-	URL                 string               `json:"url"`
-	Method              string               `json:"method"`
-	Headers             map[string]string    `json:"headers"`
-	Body                string               `json:"body"`
-	Fingerprint         Fingerprint          `json:"fingerprint"` // 指纹接口，支持 Ja3、Ja4 等
-	TLSExtensions       *TLSExtensions       `json:"-"`
-	HTTP2Settings       *http2.HTTP2Settings `json:"-"`
-	HTTP2SettingsString string               `json:"http2SettingsString"` // HTTP/2 设置字符串，如果设置则覆盖 HTTP2Settings 和 PHeaderOrderKeys
-	PHeaderOrderKeys    []string             `json:"-"`
-	HeaderOrderKeys     []string             `json:"-"`
-	UserAgent           string               `json:"userAgent"`
-	Proxy               string               `json:"proxy"`
-	Cookies             []Cookie             `json:"cookies"`
-	Timeout             int                  `json:"timeout"`
-	DisableRedirect     bool                 `json:"disableRedirect"`
-	HeaderOrder         []string             `json:"headerOrder"`
+	FingerprintUserAgent string               `json:"-"` // Protocol parser identity; request headers never change it.
+	FingerprintProvider  profile.Provider     `json:"-"`
+	Profile              *profile.Spec        `json:"profile,omitempty"`
+	HeaderValues         map[string][]string  `json:"-"`
+	URL                  string               `json:"url"`
+	Method               string               `json:"method"`
+	Headers              map[string]string    `json:"headers"`
+	Body                 string               `json:"body"`
+	Fingerprint          Fingerprint          `json:"fingerprint"` // 指纹接口，支持 Ja3、Ja4 等
+	TLSExtensions        *TLSExtensions       `json:"-"`
+	HTTP2Settings        *http2.HTTP2Settings `json:"-"`
+	HTTP2SettingsString  string               `json:"http2SettingsString"` // HTTP/2 设置字符串，如果设置则覆盖 HTTP2Settings 和 PHeaderOrderKeys
+	PHeaderOrderKeys     []string             `json:"-"`
+	HeaderOrderKeys      []string             `json:"-"`
+	UserAgent            string               `json:"userAgent"`
+	Proxy                string               `json:"proxy"`
+	Cookies              []Cookie             `json:"cookies"`
+	Timeout              int                  `json:"timeout"`
+	DisableRedirect      bool                 `json:"disableRedirect"`
+	// VerifyTLS enables certificate verification for fingerprinted TCP TLS requests.
+	// The zero value preserves historical behavior; new integrations should set true.
+	VerifyTLS   bool     `json:"verifyTLS"`
+	HeaderOrder []string `json:"headerOrder"`
 }
 
 // requestContext 包含请求、客户端和选项的完整上下文
@@ -67,6 +77,18 @@ type Fastls struct {
 
 // processRequest 创建并准备请求上下文
 func processRequest(options *Options) (*requestContext, error) {
+	if options.Profile != nil {
+		if err := ApplyProfile(options, *options.Profile); err != nil {
+			return nil, err
+		}
+	}
+	options.Headers = maps.Clone(options.Headers)
+	options.UserAgent = options.requestUserAgent()
+	for k := range options.Headers {
+		if strings.EqualFold(k, "User-Agent") {
+			options.Headers[k] = options.UserAgent
+		}
+	}
 	// 验证指纹类型，如果是 Ja4 则返回错误
 	if err := options.ValidateFingerprint(); err != nil {
 		return nil, fmt.Errorf("指纹验证失败: %w", err)
@@ -87,10 +109,13 @@ func processRequest(options *Options) (*requestContext, error) {
 	}
 
 	var browser = browser{
-		Fingerprint:   options.Fingerprint,
-		UserAgent:     options.UserAgent,
-		Cookies:       options.Cookies,
-		HTTP2Settings: options.HTTP2Settings,
+		VerifyTLS:            options.VerifyTLS,
+		Fingerprint:          options.Fingerprint,
+		Profile:              options.Profile,
+		UserAgent:            options.UserAgent,
+		FingerprintUserAgent: options.FingerprintUserAgent,
+		Cookies:              options.Cookies,
+		HTTP2Settings:        options.HTTP2Settings,
 	}
 
 	client, err := newClient(
@@ -130,10 +155,15 @@ func processRequest(options *Options) (*requestContext, error) {
 			req.Header.Set(k, v)
 		}
 	}
+	for k, values := range options.HeaderValues {
+		req.Header[k] = append([]string(nil), values...)
+	}
 	if req.Header.Get("Host") == "" {
 		req.Header.Set("Host", u.Host)
 	}
-	req.Header.Set("user-agent", options.UserAgent)
+	if _, exists := req.Header["User-Agent"]; !exists {
+		req.Header.Set("User-Agent", options.UserAgent)
+	}
 	return &requestContext{req: req, client: client, options: *options}, nil
 }
 
@@ -167,6 +197,17 @@ func dispatcher(res *requestContext) (response Response, err error) {
 
 // Do 创建单个请求
 func (client Fastls) Do(URL string, options Options, Method string) (response Response, err error) {
+	return client.DoContext(context.Background(), URL, options, Method)
+}
+
+// DoContext keeps cancellation active until the response body is closed or read.
+func (client Fastls) DoContext(ctx context.Context, URL string, options Options, Method string) (response Response, err error) {
+	if ctx == nil {
+		return response, fmt.Errorf("nil request context")
+	}
+	if err := ctx.Err(); err != nil {
+		return response, err
+	}
 	options.URL = URL
 	options.Method = Method
 
@@ -174,6 +215,7 @@ func (client Fastls) Do(URL string, options Options, Method string) (response Re
 	if err != nil {
 		return response, fmt.Errorf("处理请求失败: %w", err)
 	}
+	reqCtx.req = reqCtx.req.WithContext(ctx)
 
 	response, err = dispatcher(reqCtx)
 	if err != nil {
@@ -193,4 +235,23 @@ func NewClient() Fastls {
 // Deprecated: 请使用 NewClient() 代替
 func Init() Fastls {
 	return NewClient()
+}
+
+// requestUserAgent permits either public UA input to be edited after applying a recipe.
+// A changed header wins; otherwise a changed Options.UserAgent wins over its generated default.
+func (o Options) requestUserAgent() string {
+	for k, values := range o.HeaderValues {
+		if strings.EqualFold(k, "User-Agent") && len(values) > 0 {
+			return values[0]
+		}
+	}
+	for k, value := range o.Headers {
+		if strings.EqualFold(k, "User-Agent") {
+			if o.FingerprintUserAgent != "" && value == o.FingerprintUserAgent && o.UserAgent != value {
+				return o.UserAgent
+			}
+			return value
+		}
+	}
+	return o.UserAgent
 }

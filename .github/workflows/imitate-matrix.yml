@@ -1,0 +1,70 @@
+name: Optional imitate contract matrix
+
+# Run after the reviewed branches exist remotely. This does not publish modules.
+on:
+  workflow_dispatch:
+    inputs:
+      generator_ref:
+        description: Reviewed FastTLS/imitate ref
+        required: true
+        default: main
+      fhttp_ref:
+        description: Reviewed FastTLS/fhttp ref
+        required: true
+        default: v2
+      lab_ref:
+        description: Reviewed FastTLS/fastls-lab ref
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        go: ['1.24.11', '1.26.10']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: workspace/fastls
+      - uses: actions/checkout@v4
+        with:
+          repository: FastTLS/imitate
+          ref: ${{ inputs.generator_ref }}
+          path: workspace/imitate
+      - uses: actions/checkout@v4
+        with:
+          repository: FastTLS/fhttp
+          ref: ${{ inputs.fhttp_ref }}
+          path: workspace/fhttp
+      - uses: actions/checkout@v4
+        with:
+          repository: FastTLS/fastls-lab
+          ref: ${{ inputs.lab_ref }}
+          path: workspace/fastls-lab
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: Contract, generator, core, wire and race checks
+        working-directory: workspace
+        run: python fastls/scripts/verify-imitate.py --all --network-bootstrap --skip-consumer --public-matrix
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: imitate-${{ matrix.os }}-go${{ matrix.go }}
+          path: |
+            workspace/reports/**/report.html
+            workspace/reports/**/summary.md
+            workspace/reports/**/results.json
+            workspace/reports/**/run-manifest.json
+            workspace/reports/**/junit.xml
+            workspace/reports/**/generator-only-update.json
+            workspace/reports/**/dependency-boundaries.json
+            workspace/reports/**/candidates.json
+            workspace/reports/**/*.log

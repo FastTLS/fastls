@@ -1,6 +1,7 @@
 package fastls
 
 import (
+	"github.com/FastTLS/fastls/profile"
 	http "github.com/FastTLS/fhttp"
 	"github.com/FastTLS/fhttp/http2"
 
@@ -10,11 +11,13 @@ import (
 )
 
 type browser struct {
-	// Return a greeting that embeds the name in a message.
-	Fingerprint   Fingerprint
-	UserAgent     string
-	Cookies       []Cookie
-	HTTP2Settings *http2.HTTP2Settings
+	VerifyTLS            bool
+	Profile              *profile.Spec
+	FingerprintUserAgent string
+	Fingerprint          Fingerprint
+	UserAgent            string
+	Cookies              []Cookie
+	HTTP2Settings        *http2.HTTP2Settings
 }
 
 var disabledRedirect = func(req *http.Request, via []*http.Request) error {

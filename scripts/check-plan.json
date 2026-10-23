@@ -1,0 +1,340 @@
+{
+  "schema_version": 1,
+  "name": "v2 initial offline baseline",
+  "steps": [
+    {
+      "id": "core.test",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": ".",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout",
+        "60s",
+        "-v"
+      ],
+      "required": true
+    },
+    {
+      "id": "core.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": ".",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "core.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": ".",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-fetch.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "../fastls-fetch",
+      "command": [],
+      "required": false,
+      "reason": "service still uses removed v1 browser functions; migration to explicit Fastls + imitate Provider deferred by user"
+    },
+    {
+      "id": "fastls-fetch.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "../fastls-fetch",
+      "command": [],
+      "required": false,
+      "reason": "service still uses removed v1 browser functions; migration to explicit Fastls + imitate Provider deferred by user"
+    },
+    {
+      "id": "fastls-mitm.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "../fastls-mitm",
+      "command": [],
+      "required": false,
+      "reason": "service still uses removed v1 browser functions; migration to explicit Fastls + imitate Provider deferred by user"
+    },
+    {
+      "id": "fastls-mitm.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "../fastls-mitm",
+      "command": [],
+      "required": false,
+      "reason": "service still uses removed v1 browser functions; migration to explicit Fastls + imitate Provider deferred by user"
+    },
+    {
+      "id": "fastls-rpc.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "../fastls-rpc",
+      "command": [],
+      "required": false,
+      "reason": "service still uses removed v1 browser functions; migration to explicit Fastls + imitate Provider deferred by user"
+    },
+    {
+      "id": "fastls-rpc.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "../fastls-rpc",
+      "command": [],
+      "required": false,
+      "reason": "service still uses removed v1 browser functions; migration to explicit Fastls + imitate Provider deferred by user"
+    },
+    {
+      "id": "fastls-bench.test",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-bench",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout",
+        "60s",
+        "-v"
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-bench.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-bench",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-bench.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-bench",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-target.test",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-target",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout",
+        "60s",
+        "-v"
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-target.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-target",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-target.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-target",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-check.test",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-check",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout",
+        "60s",
+        "-v"
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-check.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-check",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-check.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-check",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "legacy.configuration",
+      "task_id": "A02",
+      "category": "unit",
+      "directory": ".",
+      "command": [
+        "go",
+        "test",
+        "./_tests",
+        "-run",
+        "^(TestH2SettingsStringCompleteness|TestH2SettingsStringLimitations|TestHTTP2SettingsStringOverride|TestParseH2SettingsStringWithPHeaderOrder|TestNO_RFC7540_PRIORITIES|TestUnknownSettingID|TestJa4FingerprintType|TestJa4FingerprintValue|TestJa4FingerprintIsEmpty|TestOptionsIsJa4|TestOptionsGetFingerprintType|TestOptionsGetFingerprintValue|TestJa4FingerprintInterface)$",
+        "-count=1",
+        "-timeout",
+        "60s",
+        "-v"
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-lab.test",
+      "task_id": "L01",
+      "category": "local",
+      "directory": "../fastls-lab",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout",
+        "60s",
+        "-v"
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-lab.build",
+      "task_id": "L01",
+      "category": "local",
+      "directory": "../fastls-lab",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-lab.vet",
+      "task_id": "L01",
+      "category": "local",
+      "directory": "../fastls-lab",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "planned.registry",
+      "task_id": "T01",
+      "category": "registry",
+      "directory": ".",
+      "command": [],
+      "required": false,
+      "reason": "C04 not implemented"
+    },
+    {
+      "id": "planned.lab",
+      "task_id": "T01",
+      "category": "lab",
+      "directory": ".",
+      "command": [],
+      "required": false,
+      "reason": "initial TLS/HTTP1/WS/WSS lab is tested; H2/H3/full comparison and drivers remain L02-L04/W01 work"
+    },
+    {
+      "id": "planned.race",
+      "task_id": "T01",
+      "category": "race",
+      "directory": ".",
+      "command": [],
+      "required": false,
+      "reason": "requires supported CGO toolchain; not part of the initial stage"
+    },
+    {
+      "id": "planned.network",
+      "task_id": "T01",
+      "category": "network",
+      "directory": ".",
+      "command": [],
+      "required": false,
+      "reason": "external observation is opt-in and not executed by this plan"
+    }
+  ],
+  "excluded": [
+    {
+      "path": "_tests/ja3_custom_test.go",
+      "reason": "network/service/WS or mixed file; explicit selection required before execution"
+    },
+    {
+      "path": "_tests/stdlib_fingerprint_test.go",
+      "reason": "network/service/WS or mixed file; explicit selection required before execution"
+    },
+    {
+      "path": "../fhttp",
+      "reason": "H01 selects affected upstream cases; root may include external integration tests"
+    },
+    {
+      "path": "../fhttp/http2/h2demo",
+      "reason": "independent legacy demo module with pre-existing dependency changes; inventory in A01"
+    },
+    {
+      "path": "../utls;../quic-go",
+      "reason": "backend affected-case selection is pending H01/P03"
+    },
+    {
+      "path": "consumer",
+      "reason": "U01 records independent downstream baseline; not hidden inside core ./..."
+    }
+  ]
+}

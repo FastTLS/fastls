@@ -1,117 +1,61 @@
-<div align="center">
-  <img src="logo.png" alt="Fastls Logo" width="200">
-  
-  # Fastls
-  
-  High-performance TLS fingerprint simulation library, supporting JA3/JA4R and browser TLS fingerprint simulation.
-  
-  > English | [中文](./README.md)
-</div>
+# Fastls
 
-## Features
+English · [中文](README.md)
 
-- ✅ High Performance - Built-in goroutine pool for asynchronous request handling
-- ✅ TLS Fingerprint Simulation - Support for JA3, JA4R (experimental), and various browser TLS fingerprint simulation
-- ✅ Browser Support - Support for mainstream browsers including Chrome, Firefox, Edge, Safari, Opera, etc.
-- ✅ Custom Header Ordering - Implemented via [fhttp](https://github.com/FastTLS/fhttp)
-- ✅ Proxy Support - HTTP, HTTPS, SOCKS5
-- ✅ Multiple Service Modes - Fetch service, MITM proxy, RPC service (JSON-RPC/gRPC)
+A Go request library for custom JA3/JA4R fingerprints, complete profile.Spec execution, ordered HTTP headers, and HTTP/HTTPS/SOCKS5 proxies. The optional [FastTLS/imitate](https://github.com/FastTLS/imitate) library generates browser configurations; Fastls applies them and sends requests.
 
-## Quick Start
+The current v2 worktree is an unpublished development candidate. Public module installation does not establish availability of these changes.
 
-### Go
-
-```bash
-go get github.com/FastTLS/fastls
-```
+## Usage
 
 ```go
-package main
-
 import (
-    "fmt"
+    "context"
+    "io"
+
     fastls "github.com/FastTLS/fastls"
     "github.com/FastTLS/fastls/imitate"
+    generators "github.com/FastTLS/imitate"
 )
 
-func main() {
-    client := fastls.NewClient()
-    
+var fingerprints = generators.New() // Safe to share between requests.
+
+func fetch(ctx context.Context, target string) ([]byte, error) {
     options := fastls.Options{
-        URL:    "https://tls.peet.ws/api/all",
-        Method: "GET",
+        FingerprintProvider: fingerprints,
+        Headers: map[string]string{"User-Agent": "my-client/1.0"},
+        Timeout: 15,
     }
-    
-    // Use Chrome142 fingerprint
-    imitate.Chrome142(&options)
-    
-    resp, err := client.Do(options.URL, options, options.Method)
+    if _, err := imitate.Use(&options, "chrome/156/windows"); err != nil {
+        return nil, err
+    }
+    resp, err := fastls.NewClient().DoContext(ctx, target, options, "GET")
     if err != nil {
-        panic(err)
+        if resp.Body != nil {
+            resp.Body.Close()
+        }
+        return nil, err
     }
+    defer resp.Client.CloseIdleConnections()
     defer resp.Body.Close()
-    
-    body, _ := io.ReadAll(resp.Body)
-    fmt.Println(string(body))
+    return io.ReadAll(resp.Body)
 }
 ```
 
-## Service Modes
+`Use` requires an explicit Provider. Caller header values override generated defaults. Downstream adapters handle legacy names and UA inference. Custom JA3/JA4R, `imitate.Apply`, and `Options.Profile` work without a generator. Consult the provider's List, Match and evidence for supported IDs and verification coverage; generating a version identity does not verify a real browser's complete fingerprint.
 
-### Fetch Service
+Close response bodies after use. Requests without a fingerprint return after response headers arrive; cancellation, timeouts and network errors can occur while reading Body. Complete Spec execution supports HTTP1/HTTP2. H3, arbitrary WS Upgrade header ordering, and cancellation during subsequent H2 dialing remain bounded capabilities; see the integration notes.
 
-RESTful API service based on HTTP.
+## Documentation and tools
 
-```bash
-cd services/fastls-fetch
-go run fetch_server.go
-```
-
-### MITM Proxy
-
-Man-in-the-middle proxy with dynamic SSL certificate generation.
-
-```bash
-cd services/fastls-mitm
-go run main.go -addr :8888 -browser chrome142
-```
-
-### RPC Service
-
-Provides both JSON-RPC 2.0 and gRPC implementations.
-
-**JSON-RPC:**
-```bash
-cd services/fastls-rpc/jsonrpc
-go run rpc_server.go
-```
-
-**gRPC:**
-```bash
-cd services/fastls-rpc/grpc
-protoc --go_out=. --go_opt=paths=source_relative \
-       --go-grpc_out=. --go-grpc_opt=paths=source_relative \
-       proto/fastls.proto
-go run grpc_server.go
-```
-
-## Supported Browsers
-
-- Chrome / Chrome120 / Chrome142
-- Chromium
-- Edge
-- Firefox
-- Safari
-- Opera
-
-## Documentation
-
-- [Fastls Usage Examples](./_examples/)
-- [Fetch Service Documentation](./services/fastls-fetch/README.md)
-- [MITM Proxy Documentation](./services/fastls-mitm/README.md)
-- [RPC Service Documentation](./services/fastls-rpc/README.md)
+- [Fingerprint application, offline registration and capability limits](imitate/README.md)
+- [Development, tests and directory guide](DEVELOPMENT.md)
+- [Shared profile specification](profile/README.md)
+- [Command-line probe source](integration/imitate/cmd/fastls-probe/main.go)
+- [Test tools](tools/README.md)
+- [Independent services and lab](services/README.md)
+- [Release prerequisites](RELEASE.md)
 
 ## License
 
-See [LICENSE](./LICENSE) file for details.
-
+This repository currently has no LICENSE file. Authorization and licensing must be confirmed before publication.

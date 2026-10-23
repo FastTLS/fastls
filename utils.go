@@ -195,16 +195,6 @@ func StringToSpec(fingerprint string, userAgent string) (*utls.ClientHelloSpec, 
 
 	// 点格式不为空时，必须设置扩展11才能发送点格式信息
 	if len(targetPointFormats) > 0 {
-		// 检查原始输入的最后一个点格式，如果已包含 "0" 则不自动添加
-		originalLastPointFormat := ""
-		if len(pointFormats) > 0 {
-			originalLastPointFormat = pointFormats[len(pointFormats)-1]
-		}
-
-		// 保持原始输入的精确性，不自动添加 0
-		if originalLastPointFormat != "0" && targetPointFormats[len(targetPointFormats)-1] != 0 {
-			// 不自动添加 0，保持原始设置的精确性
-		}
 		// 设置扩展11以发送点格式信息
 		extMap["11"] = &utls.SupportedPointsExtension{SupportedPoints: targetPointFormats}
 		// 如果扩展列表中还没有 "11"，需要添加

@@ -5,7 +5,8 @@ go 1.24
 toolchain go1.24.11
 
 require (
-	github.com/FastTLS/fhttp v0.0.0-20251222105645-5a77e3aced13
+ github.com/FastTLS/fastls/profile v0.1.0-dev.20261023.8
+	github.com/FastTLS/fhttp v0.1.0-dev.20261023.8
 	github.com/andybalholm/brotli v1.0.6
 	github.com/gorilla/websocket v1.5.3
 	github.com/klauspost/compress v1.18.1

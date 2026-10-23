@@ -1,12 +1,11 @@
 package fastls
 
 import (
-	"bytes"
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
-	"io"
+	"github.com/FastTLS/fastls/internal/compiler"
+	"github.com/FastTLS/fastls/profile"
 	"net"
 
 	"strings"
@@ -23,6 +22,9 @@ import (
 var errProtocolNegotiated = errors.New("protocol negotiated")
 
 type roundTripper struct {
+	VerifyTLS            bool
+	Profile              *profile.Spec
+	FingerprintUserAgent string
 	sync.Mutex
 	// fix typing
 	Fingerprint Fingerprint
@@ -33,12 +35,14 @@ type roundTripper struct {
 	cachedTransports  map[string]http.RoundTripper
 	http2Settings     *http2.HTTP2Settings
 
-	dialer proxy.ContextDialer
+	dialer          proxy.ContextDialer
+	stdlibMu        sync.Mutex
+	stdlibTransport *stdhttp.Transport
 }
 
 func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	// 如果 Fingerprint 为空，使用 Go 标准库的 http.Client
-	if rt.Fingerprint == nil || rt.Fingerprint.IsEmpty() {
+	// Requests without a fingerprint use the standard-library transport.
+	if rt.Profile == nil && (rt.Fingerprint == nil || rt.Fingerprint.IsEmpty()) {
 		return rt.roundTripWithStdlib(req)
 	}
 
@@ -58,7 +62,12 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 			Unparsed:   properties.Unparsed,
 		})
 	}
-	req.Header.Set("User-Agent", rt.UserAgent)
+	if _, exists := req.Header["User-Agent"]; !exists {
+		req.Header.Set("User-Agent", rt.UserAgent)
+	}
+	if rt.Profile != nil && req.Header.Get("User-Agent") == "" {
+		req.Header["User-Agent"] = []string{}
+	}
 	addr := rt.getDialTLSAddr(req)
 	if _, ok := rt.cachedTransports[addr]; !ok {
 		if err := rt.getTransport(req, addr); err != nil {
@@ -89,17 +98,6 @@ func (rt *roundTripper) getTransport(req *http.Request, addr string) error {
 			rt.cachedTransports[addr] = h3Transport
 			return nil
 		}
-	}
-
-	// 如果 Fingerprint 为空，使用 Go 标准库的默认 TLS 配置
-	if rt.Fingerprint == nil || rt.Fingerprint.IsEmpty() {
-		// 创建一个适配器，将标准库的 Transport 包装成 fhttp.RoundTripper
-		stdTransport := &stdhttp.Transport{
-			DialContext:       rt.dialer.DialContext,
-			DisableKeepAlives: true,
-		}
-		rt.cachedTransports[addr] = &stdlibTransportAdapter{transport: stdTransport}
-		return nil
 	}
 
 	_, err := rt.dialTLS(req.Context(), "tcp", addr)
@@ -134,37 +132,28 @@ func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.
 		host = addr
 	}
 
-	// 如果 Fingerprint 为空，使用 Go 标准库的 TLS（这种情况不应该到达这里，因为 getTransport 已经处理了）
-	// 但为了安全起见，这里也做检查
-	if rt.Fingerprint == nil || rt.Fingerprint.IsEmpty() {
-		// 使用 Go 标准库的 TLS
-		conn := tls.Client(rawConn, &tls.Config{
-			ServerName:         host,
-			InsecureSkipVerify: true,
-		})
-		if err = conn.Handshake(); err != nil {
-			_ = conn.Close()
-			return nil, fmt.Errorf("标准库 TLS Handshake() 错误: %+v", err)
-		}
-		rt.cachedConnections[addr] = conn
-		return conn, nil
+	var spec *utls.ClientHelloSpec
+	if rt.Profile != nil {
+		spec, err = compiler.TLS(*rt.Profile)
+	} else {
+		spec, err = StringToSpec(rt.Fingerprint.Value(), rt.protocolUserAgent())
 	}
-
-	spec, err := StringToSpec(rt.Fingerprint.Value(), rt.UserAgent)
 	if err != nil {
+		_ = rawConn.Close()
 		return nil, err
 	}
 
-	conn := utls.UClient(rawConn, &utls.Config{ServerName: host, OmitEmptyPsk: true, InsecureSkipVerify: true}, // MinVersion:         tls.VersionTLS10,
+	conn := utls.UClient(rawConn, &utls.Config{ServerName: host, OmitEmptyPsk: true, InsecureSkipVerify: !rt.VerifyTLS}, // MinVersion:         tls.VersionTLS10,
 		// MaxVersion:         tls.VersionTLS13,
 
 		utls.HelloCustom)
 
 	if err := conn.ApplyPreset(spec); err != nil {
+		_ = conn.Close()
 		return nil, err
 	}
 
-	if err = conn.Handshake(); err != nil {
+	if err = conn.HandshakeContext(ctx); err != nil {
 		_ = conn.Close()
 
 		if err.Error() == "tls: CurvePreferences includes unsupported curve" {
@@ -183,7 +172,10 @@ func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.
 	// of ALPN.
 	switch conn.ConnectionState().NegotiatedProtocol {
 	case http2.NextProtoTLS:
-		browserType := parseUserAgent(rt.UserAgent)
+		browserType := "chrome"
+		if rt.Profile == nil {
+			browserType = parseUserAgent(rt.protocolUserAgent())
+		}
 		t2 := http2.Transport{
 			DialTLS:       rt.dialTLSHTTP2,
 			PushHandler:   &http2.DefaultPushHandler{},
@@ -214,21 +206,23 @@ type stdlibTransportAdapter struct {
 
 func (a *stdlibTransportAdapter) RoundTrip(req *http.Request) (*http.Response, error) {
 	// 将 fhttp.Request 转换为标准库的 http.Request
-	stdReq, err := stdhttp.NewRequest(req.Method, req.URL.String(), req.Body)
+	stdReq, err := stdhttp.NewRequestWithContext(req.Context(), req.Method, req.URL.String(), req.Body)
 	if err != nil {
 		return nil, err
 	}
+	stdReq.Host = req.Host
+	stdReq.ContentLength = req.ContentLength
+	stdReq.GetBody = req.GetBody
+	stdReq.TransferEncoding = append([]string(nil), req.TransferEncoding...)
+	stdReq.Close = req.Close
 
-	// 复制请求头
+	// Preserve explicit empty headers, including suppression of the default UA.
 	for key, values := range req.Header {
-		for _, value := range values {
-			// 跳过 fhttp 特定的头
-			if key == http.HeaderOrderKey || key == http.PHeaderOrderKey {
-				continue
-			}
-			stdReq.Header.Add(key, value)
+		if key != http.HeaderOrderKey && key != http.PHeaderOrderKey {
+			stdReq.Header[key] = append([]string(nil), values...)
 		}
 	}
+	stdReq.Trailer = stdhttp.Header(req.Trailer)
 
 	// 发送请求
 	stdResp, err := a.transport.RoundTrip(stdReq)
@@ -236,24 +230,21 @@ func (a *stdlibTransportAdapter) RoundTrip(req *http.Request) (*http.Response, e
 		return nil, err
 	}
 
-	// 将标准库的 Response 转换为 fhttp.Response
-	// 读取响应体
-	bodyBytes, err := io.ReadAll(stdResp.Body)
-	stdResp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
 	// 创建 fhttp.Response
 	fhttpResp := &http.Response{
-		Status:     stdResp.Status,
-		StatusCode: stdResp.StatusCode,
-		Proto:      stdResp.Proto,
-		ProtoMajor: stdResp.ProtoMajor,
-		ProtoMinor: stdResp.ProtoMinor,
-		Header:     http.Header{},
-		Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
-		Request:    req,
+		Status:           stdResp.Status,
+		StatusCode:       stdResp.StatusCode,
+		Proto:            stdResp.Proto,
+		ProtoMajor:       stdResp.ProtoMajor,
+		ProtoMinor:       stdResp.ProtoMinor,
+		Header:           http.Header{},
+		Body:             stdResp.Body,
+		ContentLength:    stdResp.ContentLength,
+		TransferEncoding: append([]string(nil), stdResp.TransferEncoding...),
+		Close:            stdResp.Close,
+		Uncompressed:     stdResp.Uncompressed,
+		Trailer:          http.Header(stdResp.Trailer),
+		Request:          req,
 	}
 
 	// 复制响应头
@@ -266,89 +257,30 @@ func (a *stdlibTransportAdapter) RoundTrip(req *http.Request) (*http.Response, e
 	return fhttpResp, nil
 }
 
-// roundTripWithStdlib 使用 Go 标准库的 http.Client 发送请求
+// roundTripWithStdlib performs one exchange; the outer client owns redirects
+// and timeouts. The caller owns the returned streaming response body.
 func (rt *roundTripper) roundTripWithStdlib(req *http.Request) (*http.Response, error) {
-	// 将 fhttp.Request 转换为标准库的 http.Request
-	stdReq, err := stdhttp.NewRequest(req.Method, req.URL.String(), req.Body)
-	if err != nil {
-		return nil, err
+	rt.stdlibMu.Lock()
+	if rt.stdlibTransport == nil {
+		rt.stdlibTransport = &stdhttp.Transport{DialContext: rt.dialer.DialContext}
 	}
-
-	// 复制请求头
-	for key, values := range req.Header {
-		for _, value := range values {
-			// 跳过 fhttp 特定的头
-			if key == http.HeaderOrderKey || key == http.PHeaderOrderKey {
-				continue
-			}
-			stdReq.Header.Add(key, value)
-		}
+	transport := rt.stdlibTransport
+	rt.stdlibMu.Unlock()
+	// RoundTripper must not mutate the caller's headers.
+	req = req.Clone(req.Context())
+	if _, exists := req.Header["User-Agent"]; !exists && rt.UserAgent != "" {
+		req.Header.Set("User-Agent", rt.UserAgent)
 	}
-
-	// 设置 User-Agent
-	if rt.UserAgent != "" {
-		stdReq.Header.Set("User-Agent", rt.UserAgent)
-	}
-
-	// 添加 Cookies
 	for _, properties := range rt.Cookies {
-		stdReq.AddCookie(&stdhttp.Cookie{
-			Name:       properties.Name,
-			Value:      properties.Value,
-			Path:       properties.Path,
-			Domain:     properties.Domain,
-			Expires:    properties.JSONExpires.Time,
-			RawExpires: properties.RawExpires,
-			MaxAge:     properties.MaxAge,
-			HttpOnly:   properties.HTTPOnly,
-			Secure:     properties.Secure,
-			Raw:        properties.Raw,
-			Unparsed:   properties.Unparsed,
+		req.AddCookie(&http.Cookie{
+			Name: properties.Name, Value: properties.Value,
+			Path: properties.Path, Domain: properties.Domain,
+			Expires: properties.JSONExpires.Time, RawExpires: properties.RawExpires,
+			MaxAge: properties.MaxAge, HttpOnly: properties.HTTPOnly,
+			Secure: properties.Secure, Raw: properties.Raw, Unparsed: properties.Unparsed,
 		})
 	}
-
-	// 创建标准库的 http.Client
-	client := &stdhttp.Client{
-		Transport: &stdhttp.Transport{
-			DialContext: rt.dialer.DialContext,
-		},
-	}
-
-	// 发送请求
-	stdResp, err := client.Do(stdReq)
-	if err != nil {
-		return nil, err
-	}
-
-	// 将标准库的 Response 转换为 fhttp.Response
-	// 由于类型不兼容，我们需要手动创建 fhttp.Response
-	// 读取响应体
-	bodyBytes, err := io.ReadAll(stdResp.Body)
-	stdResp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	// 创建 fhttp.Response
-	fhttpResp := &http.Response{
-		Status:     stdResp.Status,
-		StatusCode: stdResp.StatusCode,
-		Proto:      stdResp.Proto,
-		ProtoMajor: stdResp.ProtoMajor,
-		ProtoMinor: stdResp.ProtoMinor,
-		Header:     http.Header{},
-		Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
-		Request:    req,
-	}
-
-	// 复制响应头
-	for key, values := range stdResp.Header {
-		for _, value := range values {
-			fhttpResp.Header.Add(key, value)
-		}
-	}
-
-	return fhttpResp, nil
+	return (&stdlibTransportAdapter{transport: transport}).RoundTrip(req)
 }
 
 func (rt *roundTripper) getDialTLSAddr(req *http.Request) string {
@@ -360,6 +292,12 @@ func (rt *roundTripper) getDialTLSAddr(req *http.Request) string {
 }
 
 func (rt *roundTripper) CloseIdleConnections() {
+	rt.stdlibMu.Lock()
+	transport := rt.stdlibTransport
+	rt.stdlibMu.Unlock()
+	if transport != nil {
+		transport.CloseIdleConnections()
+	}
 	for addr, conn := range rt.cachedConnections {
 		_ = conn.Close()
 		delete(rt.cachedConnections, addr)
@@ -369,25 +307,38 @@ func (rt *roundTripper) CloseIdleConnections() {
 func newRoundTripper(browser browser, dialer ...proxy.ContextDialer) http.RoundTripper {
 	if len(dialer) > 0 {
 		return &roundTripper{
-			dialer: dialer[0],
+			VerifyTLS: browser.VerifyTLS,
+			dialer:    dialer[0],
 
-			Fingerprint:       browser.Fingerprint,
-			UserAgent:         browser.UserAgent,
-			Cookies:           browser.Cookies,
-			cachedTransports:  make(map[string]http.RoundTripper),
-			cachedConnections: make(map[string]net.Conn),
-			http2Settings:     browser.HTTP2Settings,
+			Fingerprint:          browser.Fingerprint,
+			Profile:              browser.Profile,
+			UserAgent:            browser.UserAgent,
+			FingerprintUserAgent: browser.FingerprintUserAgent,
+			Cookies:              browser.Cookies,
+			cachedTransports:     make(map[string]http.RoundTripper),
+			cachedConnections:    make(map[string]net.Conn),
+			http2Settings:        browser.HTTP2Settings,
 		}
 	}
 
 	return &roundTripper{
-		dialer: proxy.Direct,
+		VerifyTLS: browser.VerifyTLS,
+		dialer:    proxy.Direct,
 
-		Fingerprint:       browser.Fingerprint,
-		UserAgent:         browser.UserAgent,
-		Cookies:           browser.Cookies,
-		cachedTransports:  make(map[string]http.RoundTripper),
-		cachedConnections: make(map[string]net.Conn),
-		http2Settings:     browser.HTTP2Settings,
+		Fingerprint:          browser.Fingerprint,
+		Profile:              browser.Profile,
+		UserAgent:            browser.UserAgent,
+		FingerprintUserAgent: browser.FingerprintUserAgent,
+		Cookies:              browser.Cookies,
+		cachedTransports:     make(map[string]http.RoundTripper),
+		cachedConnections:    make(map[string]net.Conn),
+		http2Settings:        browser.HTTP2Settings,
 	}
+}
+
+func (rt *roundTripper) protocolUserAgent() string {
+	if rt.FingerprintUserAgent != "" {
+		return rt.FingerprintUserAgent
+	}
+	return rt.UserAgent
 }

@@ -4,17 +4,22 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
+	"github.com/FastTLS/fastls/internal/compiler"
+	"github.com/FastTLS/fastls/profile"
 	"github.com/gorilla/websocket"
 	utls "github.com/refraction-networking/utls"
 )
 
 // WebSocketClient represents a client for WebSocket connections
 type WebSocketClient struct {
+	setupError error
 	// Dialer is the websocket dialer
 	Dialer *websocket.Dialer
 
@@ -32,16 +37,33 @@ type WebSocketClient struct {
 }
 
 // NewWebSocketClientWithOptions creates a new WebSocket client from Options
-// This allows using imitate functions (e.g., imitate.Firefox, imitate.Chrome)
+// Prepare options with imitate.Use and an explicit provider, or supply a custom fingerprint.
 func NewWebSocketClientWithOptions(options Options) *WebSocketClient {
+	options.Headers = maps.Clone(options.Headers)
+	options.UserAgent = options.requestUserAgent()
+	for k := range options.Headers {
+		if strings.EqualFold(k, "User-Agent") {
+			options.Headers[k] = options.UserAgent
+		}
+	}
+	if options.Profile != nil {
+		return newProfileWebSocket(options)
+	}
 	headers := http.Header{}
 	for k, v := range options.Headers {
 		headers.Set(k, v)
 	}
-	if options.UserAgent != "" {
+	for k, values := range options.HeaderValues {
+		headers[http.CanonicalHeaderKey(k)] = append([]string(nil), values...)
+	}
+	if _, exists := headers["User-Agent"]; !exists {
 		headers.Set("User-Agent", options.UserAgent)
 	}
-	return NewWebSocketClient(options.Fingerprint, options.UserAgent, headers)
+	protocolUA := options.FingerprintUserAgent
+	if protocolUA == "" {
+		protocolUA = options.UserAgent
+	}
+	return NewWebSocketClient(options.Fingerprint, protocolUA, headers)
 }
 
 // NewWebSocketClient creates a new WebSocket client with TLS fingerprinting support
@@ -188,6 +210,9 @@ func NewWebSocketClient(fingerprint Fingerprint, userAgent string, headers http.
 
 // Connect establishes a WebSocket connection
 func (wsc *WebSocketClient) Connect(urlStr string) (*websocket.Conn, *http.Response, error) {
+	if wsc.setupError != nil {
+		return nil, nil, wsc.setupError
+	}
 	// Parse the URL
 	u, err := url.Parse(urlStr)
 	if err != nil {
@@ -223,6 +248,68 @@ func (wsc *WebSocketClient) Connect(urlStr string) (*websocket.Conn, *http.Respo
 	}
 
 	return conn, resp, nil
+}
+
+// newProfileWebSocket preserves the supplied TLS parameters. Gorilla controls
+// the HTTP Upgrade header order; explicit order and H2/H3 are rejected.
+func newProfileWebSocket(options Options) *WebSocketClient {
+	bad := func(err error) *WebSocketClient { return &WebSocketClient{setupError: err} }
+	if err := ApplyProfile(&options, *options.Profile); err != nil {
+		return bad(err)
+	}
+	s := profile.Clone(*options.Profile)
+	if len(s.Headers.Order) > 0 || len(options.HeaderOrderKeys) > 0 {
+		return bad(&profile.UnsupportedFeature{Field: "websocket.headers.order", Feature: "ordered-upgrade.v1"})
+	}
+	for _, e := range s.TLS.Extensions {
+		if e.ID == 16 {
+			for _, p := range e.ALPN {
+				if p != "http/1.1" {
+					return bad(&profile.UnsupportedFeature{Field: "websocket.alpn", Feature: p})
+				}
+			}
+		}
+	}
+	headers := http.Header{}
+	for k, v := range options.Headers {
+		headers.Set(k, v)
+	}
+	for k, v := range options.HeaderValues {
+		headers[k] = append([]string(nil), v...)
+	}
+	if _, exists := headers["User-Agent"]; !exists {
+		headers.Set("User-Agent", options.UserAgent)
+	}
+	c := NewWebSocketClient(nil, options.UserAgent, headers)
+	if options.UserAgent == "" {
+		c.Headers.Set("User-Agent", "")
+	}
+	c.Dialer.NetDialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		spec, err := compiler.TLS(s)
+		if err != nil {
+			return nil, err
+		}
+		raw, err := (&net.Dialer{Timeout: 30 * time.Second}).DialContext(ctx, network, addr)
+		if err != nil {
+			return nil, err
+		}
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			raw.Close()
+			return nil, err
+		}
+		conn := utls.UClient(raw, &utls.Config{ServerName: host, InsecureSkipVerify: true}, utls.HelloCustom)
+		if err = conn.ApplyPreset(spec); err != nil {
+			conn.Close()
+			return nil, err
+		}
+		if err = conn.HandshakeContext(ctx); err != nil {
+			conn.Close()
+			return nil, err
+		}
+		return conn, nil
+	}
+	return c
 }
 
 // WebSocketResponse represents a response from a WebSocket connection

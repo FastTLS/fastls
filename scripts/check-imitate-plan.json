@@ -1,0 +1,594 @@
+{
+  "schema_version": 1,
+  "name": "imitate v2 canonical selectors and caller header overrides",
+  "steps": [
+    {
+      "id": "orchestrator.reporting",
+      "task_id": "IP07",
+      "category": "reporting",
+      "directory": ".",
+      "command": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts",
+        "-p",
+        "test_verify_imitate.py"
+      ],
+      "required": true
+    },
+    {
+      "id": "core.test",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": ".",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout",
+        "60s",
+        "-v"
+      ],
+      "required": true
+    },
+    {
+      "id": "core.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": ".",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "core.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": ".",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-fetch.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "../fastls-fetch",
+      "command": [],
+      "required": false,
+      "reason": "service still uses removed v1 browser functions; migration to explicit Fastls + imitate Provider deferred by user"
+    },
+    {
+      "id": "fastls-fetch.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "../fastls-fetch",
+      "command": [],
+      "required": false,
+      "reason": "service still uses removed v1 browser functions; migration to explicit Fastls + imitate Provider deferred by user"
+    },
+    {
+      "id": "fastls-mitm.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "../fastls-mitm",
+      "command": [],
+      "required": false,
+      "reason": "service still uses removed v1 browser functions; migration to explicit Fastls + imitate Provider deferred by user"
+    },
+    {
+      "id": "fastls-mitm.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "../fastls-mitm",
+      "command": [],
+      "required": false,
+      "reason": "service still uses removed v1 browser functions; migration to explicit Fastls + imitate Provider deferred by user"
+    },
+    {
+      "id": "fastls-rpc.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "../fastls-rpc",
+      "command": [],
+      "required": false,
+      "reason": "service still uses removed v1 browser functions; migration to explicit Fastls + imitate Provider deferred by user"
+    },
+    {
+      "id": "fastls-rpc.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "../fastls-rpc",
+      "command": [],
+      "required": false,
+      "reason": "service still uses removed v1 browser functions; migration to explicit Fastls + imitate Provider deferred by user"
+    },
+    {
+      "id": "fastls-bench.test",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-bench",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout",
+        "60s",
+        "-v"
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-bench.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-bench",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-bench.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-bench",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-target.test",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-target",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout",
+        "60s",
+        "-v"
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-target.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-target",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-target.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-target",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-check.test",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-check",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout",
+        "60s",
+        "-v"
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-check.build",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-check",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-check.vet",
+      "task_id": "T01",
+      "category": "workspace",
+      "directory": "tools/fastls-check",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "legacy.configuration",
+      "task_id": "A02",
+      "category": "unit",
+      "directory": ".",
+      "command": [
+        "go",
+        "test",
+        "./_tests",
+        "-run",
+        "^(TestH2SettingsStringCompleteness|TestH2SettingsStringLimitations|TestHTTP2SettingsStringOverride|TestParseH2SettingsStringWithPHeaderOrder|TestNO_RFC7540_PRIORITIES|TestUnknownSettingID|TestJa4FingerprintType|TestJa4FingerprintValue|TestJa4FingerprintIsEmpty|TestOptionsIsJa4|TestOptionsGetFingerprintType|TestOptionsGetFingerprintValue|TestJa4FingerprintInterface)$",
+        "-count=1",
+        "-timeout",
+        "60s",
+        "-v"
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-lab.test",
+      "task_id": "L01",
+      "category": "local",
+      "directory": "../fastls-lab",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout",
+        "60s",
+        "-v"
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-lab.build",
+      "task_id": "L01",
+      "category": "local",
+      "directory": "../fastls-lab",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "fastls-lab.vet",
+      "task_id": "L01",
+      "category": "local",
+      "directory": "../fastls-lab",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "profile.test",
+      "task_id": "IP07",
+      "category": "contract",
+      "directory": "profile",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1"
+      ],
+      "required": true
+    },
+    {
+      "id": "profile.build",
+      "task_id": "IP07",
+      "category": "contract",
+      "directory": "profile",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "profile.vet",
+      "task_id": "IP07",
+      "category": "contract",
+      "directory": "profile",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "generator.test",
+      "task_id": "IP07",
+      "category": "generator",
+      "directory": "../imitate",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1"
+      ],
+      "required": true
+    },
+    {
+      "id": "generator.build",
+      "task_id": "IP07",
+      "category": "generator",
+      "directory": "../imitate",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "generator.vet",
+      "task_id": "IP07",
+      "category": "generator",
+      "directory": "../imitate",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "integration.wire",
+      "task_id": "IP07",
+      "category": "provider",
+      "directory": "integration/imitate",
+      "command": [
+        "go",
+        "test",
+        "-v",
+        "-count=1",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "integration.dependencies",
+      "task_id": "IP07",
+      "category": "provider",
+      "directory": ".",
+      "command": [
+        "python",
+        "scripts/verify-imitate.py",
+        "--graphs"
+      ],
+      "required": true
+    },
+    {
+      "id": "integration.generator-update",
+      "task_id": "IP07",
+      "category": "provider",
+      "directory": ".",
+      "command": [
+        "python",
+        "scripts/verify-imitate.py",
+        "--upgrade"
+      ],
+      "required": true
+    },
+    {
+      "id": "fhttp.explicit",
+      "task_id": "IP07",
+      "category": "provider",
+      "directory": "../fhttp",
+      "command": [
+        "go",
+        "test",
+        "./http2",
+        "-run",
+        "TestExplicit|TestConnectionSettings",
+        "-v"
+      ],
+      "required": true
+    },
+    {
+      "id": "fhttp.vet",
+      "task_id": "IP07",
+      "category": "provider",
+      "directory": "../fhttp",
+      "command": [
+        "go",
+        "vet",
+        "./http2"
+      ],
+      "required": true
+    },
+    {
+      "id": "core.generator-boundary",
+      "task_id": "IP07",
+      "category": "provider",
+      "directory": ".",
+      "command": [
+        "python",
+        "scripts/check-generator-boundary.py"
+      ],
+      "required": true
+    },
+    {
+      "id": "linux.cross-build",
+      "task_id": "IP07",
+      "category": "platform",
+      "directory": ".",
+      "command": [
+        "python",
+        "scripts/verify-imitate.py",
+        "--cross-build",
+        "linux"
+      ],
+      "required": true
+    },
+    {
+      "id": "race.canary",
+      "task_id": "IP07",
+      "category": "race",
+      "directory": ".",
+      "command": [
+        "python",
+        "scripts/verify-imitate.py",
+        "--race-canary"
+      ],
+      "required": true
+    },
+    {
+      "id": "race.profile",
+      "task_id": "IP07",
+      "category": "provider",
+      "directory": ".",
+      "command": [
+        "python",
+        "scripts/verify-imitate.py",
+        "--race",
+        "fastls/profile"
+      ],
+      "required": true
+    },
+    {
+      "id": "race.generator",
+      "task_id": "IP07",
+      "category": "provider",
+      "directory": ".",
+      "command": [
+        "python",
+        "scripts/verify-imitate.py",
+        "--race",
+        "imitate"
+      ],
+      "required": true
+    },
+    {
+      "id": "race.core",
+      "task_id": "IP07",
+      "category": "provider",
+      "directory": ".",
+      "command": [
+        "python",
+        "scripts/verify-imitate.py",
+        "--race",
+        "fastls"
+      ],
+      "required": true
+    },
+    {
+      "id": "race.integration",
+      "task_id": "IP07",
+      "category": "provider",
+      "directory": ".",
+      "command": [
+        "python",
+        "scripts/verify-imitate.py",
+        "--race",
+        "fastls/integration/imitate"
+      ],
+      "required": true
+    },
+    {
+      "id": "consumer.test",
+      "task_id": "IP06",
+      "category": "consumer",
+      "directory": "../../穿云/cloudflare-bypass/cloudflare-bypass-go",
+      "command": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "consumer.build",
+      "task_id": "IP06",
+      "category": "consumer",
+      "directory": "../../穿云/cloudflare-bypass/cloudflare-bypass-go",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "consumer.vet",
+      "task_id": "IP06",
+      "category": "consumer",
+      "directory": "../../穿云/cloudflare-bypass/cloudflare-bypass-go",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "required": true
+    },
+    {
+      "id": "release.remote",
+      "task_id": "IP07",
+      "category": "release",
+      "directory": ".",
+      "command": [],
+      "required": false,
+      "reason": "not published: public profile/fhttp/core/imitate versions and licensing await a separately authorized release"
+    },
+    {
+      "id": "linux.runtime",
+      "task_id": "IP07",
+      "category": "platform",
+      "directory": ".",
+      "command": [],
+      "required": false,
+      "reason": "Linux test execution requires a Linux runner; local cross-build is separate evidence"
+    }
+  ],
+  "excluded": [
+    {
+      "path": "_tests/ja3_custom_test.go",
+      "reason": "network/service/WS or mixed file; explicit selection required before execution"
+    },
+    {
+      "path": "_tests/stdlib_fingerprint_test.go",
+      "reason": "network/service/WS or mixed file; explicit selection required before execution"
+    },
+    {
+      "path": "../fhttp/http2/h2demo",
+      "reason": "independent legacy demo module with pre-existing dependency changes; inventory in A01"
+    },
+    {
+      "path": "../utls;../quic-go",
+      "reason": "backend affected-case selection is pending H01/P03"
+    }
+  ]
+}

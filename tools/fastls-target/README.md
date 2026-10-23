@@ -255,7 +255,7 @@ curl -X DELETE http://localhost:8080/api/users/1
 
 ```bash
 # 启动 MITM 代理
-cd ../../services/fastls-mitm
+cd ../../../fastls-mitm
 ./fastls-mitm -addr :8888
 
 # 启动 HTTP 靶场服务器

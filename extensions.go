@@ -154,7 +154,7 @@ func ToTLSExtensions(e *Extensions) (extensions *TLSExtensions) {
 	if e.RecordSizeLimit != 0 {
 		hexStr := fmt.Sprintf("0x%v", e.RecordSizeLimit)
 		hexInt, _ := strconv.ParseInt(hexStr, 0, 0)
-		extensions.RecordSizeLimit = &utls.FakeRecordSizeLimitExtension{uint16(hexInt)}
+		extensions.RecordSizeLimit = &utls.FakeRecordSizeLimitExtension{Limit: uint16(hexInt)}
 	}
 	if e.DelegatedCredentials != nil {
 		extensions.DelegatedCredentials = &utls.DelegatedCredentialsExtension{SupportedSignatureAlgorithms: []utls.SignatureScheme{}}

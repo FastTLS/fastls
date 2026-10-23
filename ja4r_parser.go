@@ -17,8 +17,8 @@ import (
 // EXPERIMENTAL: This feature is experimental and the API may change in future versions.
 func ParseJA4R(ja4r string, userAgent string) (*utls.ClientHelloSpec, error) {
 	// 验证格式
-	if !strings.HasPrefix(ja4r, "t") {
-		return nil, fmt.Errorf("JA4R 格式错误: 应该以 't' 开头")
+	if !strings.HasPrefix(ja4r, "t") && !strings.HasPrefix(ja4r, "q") {
+		return nil, fmt.Errorf("JA4R 格式错误: 应该以 't' 或 'q' 开头")
 	}
 
 	// 分割各个部分
@@ -113,32 +113,28 @@ func ParseJA4R(ja4r string, userAgent string) (*utls.ClientHelloSpec, error) {
 	// 构建扩展映射
 	extMap := buildTLSExtensionMap(browserType, includePSK)
 
-	// 设置支持的曲线（从扩展中提取）
+	// JA4R 的扩展列表可能省略 SNI 和 ALPN；它们的信息位于前缀。
+	var alpn *utls.ALPNExtension
+	if len(prefix) >= 10 {
+		switch prefix[8:10] {
+		case "h2":
+			alpn = &utls.ALPNExtension{AlpnProtocols: []string{"h2", "http/1.1"}}
+		case "h1":
+			alpn = &utls.ALPNExtension{AlpnProtocols: []string{"http/1.1"}}
+		case "h3":
+			alpn = &utls.ALPNExtension{AlpnProtocols: []string{"h3"}}
+		}
+	}
+	if alpn != nil {
+		extMap["16"] = alpn
+	}
+
+	// JA4R 不包含曲线参数，GREASE 之外始终补充可协商的默认组。
 	var targetCurves []utls.CurveID
-	// 查找 supported_groups 扩展（ID 10 = 0x000a）
-	for i, extID := range extensionIDs {
-		if extID == 0x000a { // supported_groups
-			// 如果扩展列表中有 supported_groups，我们需要从扩展映射中获取
-			// 或者根据浏览器类型设置默认曲线
-			if browserType == chrome {
-				targetCurves = append(targetCurves, utls.CurveID(utls.GREASE_PLACEHOLDER))
-			}
-			// 注意：JA4R 格式中没有直接包含曲线信息，我们需要从扩展中推断
-			// 这里使用默认的曲线配置
-			break
-		}
-		_ = i // 避免未使用变量警告
+	if browserType == chrome {
+		targetCurves = append(targetCurves, utls.CurveID(utls.GREASE_PLACEHOLDER))
 	}
-
-	// 如果没有找到曲线扩展，使用默认配置
-	if len(targetCurves) == 0 {
-		if browserType == chrome {
-			targetCurves = append(targetCurves, utls.CurveID(utls.GREASE_PLACEHOLDER))
-		}
-		// 添加常用曲线
-		targetCurves = append(targetCurves, utls.X25519, utls.CurveP256, utls.CurveP384, utls.CurveP521)
-	}
-
+	targetCurves = append(targetCurves, utls.X25519, utls.CurveP256, utls.CurveP384, utls.CurveP521)
 	extMap["10"] = &utls.SupportedCurvesExtension{Curves: targetCurves}
 
 	// 设置点格式（从扩展中提取）
@@ -215,9 +211,12 @@ func ParseJA4R(ja4r string, userAgent string) (*utls.ClientHelloSpec, error) {
 	// 按照 extensionIDs 的顺序逐个处理，确保顺序一致
 	var extList []utls.TLSExtension
 	var pskExt utls.TLSExtension
+	hasSNI, hasALPN := false, false
 
 	// 按照 JA4R 中的扩展顺序逐个处理
 	for _, extID := range extensionIDs {
+		hasSNI = hasSNI || extID == 0
+		hasALPN = hasALPN || extID == 16
 		extKey := fmt.Sprintf("%d", extID)
 
 		// 特殊处理 PSK 扩展，需要放在最后
@@ -264,6 +263,14 @@ func ParseJA4R(ja4r string, userAgent string) (*utls.ClientHelloSpec, error) {
 			}
 			extList = append(extList, ext)
 		}
+	}
+
+	// 不重复已有扩展，并保持 PSK 在最后。
+	if sniIndicator == 'd' && !hasSNI {
+		extList = append(extList, &utls.SNIExtension{})
+	}
+	if alpn != nil && !hasALPN {
+		extList = append(extList, alpn)
 	}
 
 	// 处理 PSK 扩展：确保它在最后（如果存在）

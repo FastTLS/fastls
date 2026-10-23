@@ -145,7 +145,7 @@ type ContextKeyHeader struct{}
 // ctx.Value will be inspected for optional ContextKeyHeader{} key, with `http.Header` value,
 // which will be added to outgoing request headers, overriding any colliding c.DefaultHeader
 func (c *connectDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
-	if c.ProxyURL.Scheme == "socks5" {
+	if c.ProxyURL.Scheme == "socks5" || c.ProxyURL.Scheme == "socks5h" {
 		return c.Dialer.DialContext(ctx, network, address)
 	}
 

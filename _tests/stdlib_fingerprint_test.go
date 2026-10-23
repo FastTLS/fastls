@@ -1,84 +1,44 @@
 package tests
 
 import (
-	"encoding/json"
-	"io"
+	fastls "github.com/FastTLS/fastls"
 	"net/http"
 	"testing"
+	"time"
 )
 
-// TestGoStdlibFingerprint 测试 Go 标准库 net/http 的默认 TLS 指纹
 func TestGoStdlibFingerprint(t *testing.T) {
-	// 使用 Go 标准库的 http.Client
-	client := &http.Client{
-		Timeout: 0, // 使用默认超时
-	}
-
-	// 发送请求到 tls.peet.ws 来检测 TLS 指纹
-	resp, err := client.Get("https://tls.peet.ws/api/all")
+	o := startPeet(t, "", "")
+	// Direct TLS baseline: environment proxy settings are intentionally not used.
+	transport := &http.Transport{}
+	defer transport.CloseIdleConnections()
+	client := &http.Client{Transport: transport, Timeout: 20 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	req, err := http.NewRequest("GET", peetURL, nil)
 	if err != nil {
-		t.Fatalf("请求失败: %v", err)
+		t.Fatal(err)
+	}
+	req.Header.Set("User-Agent", peetUserAgent)
+	req.Header.Set("Accept", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		o.Error = err.Error()
+		t.Fatal(err)
 	}
 	defer resp.Body.Close()
+	finishPeet(t, o, resp.StatusCode, resp.Body)
+}
 
-	if resp.StatusCode != 200 {
-		t.Errorf("期望状态码 200, 得到 %d", resp.StatusCode)
+func TestFastlsStdlibFingerprint(t *testing.T) {
+	o := startPeet(t, "", "")
+	resp, err := fastls.NewClient().Do(peetURL, fastls.Options{UserAgent: peetUserAgent, Timeout: 20, DisableRedirect: true}, "GET")
+	defer resp.Client.CloseIdleConnections()
+	if resp.Body != nil {
+		defer resp.Body.Close()
 	}
-
-	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		t.Fatalf("读取响应失败: %v", err)
+		o.Error = err.Error()
+		t.Fatal(err)
 	}
-
-	if len(body) == 0 {
-		t.Error("响应体为空")
-	}
-
-	// 解析JSON响应
-	var result map[string]interface{}
-	if err := json.Unmarshal(body, &result); err != nil {
-		t.Fatalf("解析JSON失败: %v", err)
-	}
-
-	// 提取 TLS 信息
-	tlsData, ok := result["tls"]
-	if !ok {
-		t.Error("响应中缺少 'tls' 字段")
-		return
-	}
-
-	tlsMap, ok := tlsData.(map[string]interface{})
-	if !ok {
-		t.Error("'tls' 字段格式不正确")
-		return
-	}
-
-	// 提取 JA3 指纹
-	ja3, ok := tlsMap["ja3"]
-	if !ok {
-		t.Error("响应中缺少 'tls.ja3' 字段")
-		return
-	}
-
-	ja3Str, ok := ja3.(string)
-	if !ok {
-		t.Errorf("'tls.ja3' 字段类型不正确，期望string，得到 %T", ja3)
-		return
-	}
-
-	// 提取其他有用的 TLS 信息
-	tlsVersion, _ := tlsMap["version"].(string)
-	cipherSuite, _ := tlsMap["cipher"].(string)
-
-	t.Logf("=== Go 标准库 net/http 的 TLS 指纹信息 ===")
-	t.Logf("JA3 指纹: %s", ja3Str)
-	if tlsVersion != "" {
-		t.Logf("TLS 版本: %s", tlsVersion)
-	}
-	if cipherSuite != "" {
-		t.Logf("加密套件: %s", cipherSuite)
-	}
-
-	// 打印完整的 TLS 信息（用于调试）
-	t.Logf("完整 TLS 信息: %+v", tlsMap)
+	finishPeet(t, o, resp.Status, resp.Body)
 }

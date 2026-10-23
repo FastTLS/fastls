@@ -1,10 +1,9 @@
-# tools
+# 本地测试工具
 
-本地测试工具，不属于 Fastls 库。
+工具各自为独立 Go module，均只依赖标准库：
 
-| 目录 | 作用 |
-|------|------|
-| `fastls-target` | HTTP/HTTPS 靶场，回显请求并统计访问 |
-| `fastls-bench` | HTTP 压力测试客户端，统计 QPS、成功率和响应时间 |
+- [fastls-target](fastls-target/README.md)：HTTP/HTTPS 靶场，回显请求并统计访问。
+- [fastls-bench](fastls-bench/README.md)：HTTP 压测，统计吞吐、成功率和响应时间。
+- [fastls-check](fastls-check/README.md)：按显式计划执行检查，生成 HTML/JSON/Markdown/JUnit 报告。
 
-两个工具各自是独立的 Go module，只依赖标准库。典型用法是先启动靶场，再用 bench 对它压测。详见各自目录下的 README。
+更完整的 TLS/HTTP2/WS/WSS 指纹采集使用独立 [fastls-lab](https://github.com/FastTLS/fastls-lab)。工具和服务不属于核心库运行依赖。

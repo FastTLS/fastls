@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "files": [
+    {
+      "file": "_tests/h2settings_string_completeness_test.go",
+      "tests": [
+        "TestH2SettingsStringCompleteness",
+        "TestH2SettingsStringLimitations"
+      ],
+      "selected_offline": [
+        "TestH2SettingsStringCompleteness",
+        "TestH2SettingsStringLimitations"
+      ],
+      "reason": "configuration-only reviewed file"
+    },
+    {
+      "file": "_tests/http2settings_string_test.go",
+      "tests": [
+        "TestHTTP2SettingsStringOverride",
+        "TestParseH2SettingsStringWithPHeaderOrder"
+      ],
+      "selected_offline": [
+        "TestHTTP2SettingsStringOverride",
+        "TestParseH2SettingsStringWithPHeaderOrder"
+      ],
+      "reason": "configuration-only reviewed file"
+    },
+    {
+      "file": "_tests/ja3_custom_test.go",
+      "tests": [
+        "TestCustomJA3Fingerprint",
+        "TestJA3PointFormatsVariation"
+      ],
+      "selected_offline": [],
+      "reason": "network/service/WS or mixed file; explicit selection required before execution"
+    },
+    {
+      "file": "_tests/no_rfc7540_priorities_test.go",
+      "tests": [
+        "TestNO_RFC7540_PRIORITIES"
+      ],
+      "selected_offline": [
+        "TestNO_RFC7540_PRIORITIES"
+      ],
+      "reason": "configuration-only reviewed file"
+    },
+    {
+      "file": "_tests/stdlib_fingerprint_test.go",
+      "tests": [
+        "TestGoStdlibFingerprint"
+      ],
+      "selected_offline": [],
+      "reason": "network/service/WS or mixed file; explicit selection required before execution"
+    },
+    {
+      "file": "_tests/unknown_setting_test.go",
+      "tests": [
+        "TestUnknownSettingID"
+      ],
+      "selected_offline": [
+        "TestUnknownSettingID"
+      ],
+      "reason": "configuration-only reviewed file"
+    },
+    {
+      "file": "_tests/ja4_core_test.go",
+      "tests": [
+        "TestJa4FingerprintType",
+        "TestJa4FingerprintValue",
+        "TestJa4FingerprintIsEmpty",
+        "TestOptionsIsJa4",
+        "TestOptionsGetFingerprintType",
+        "TestOptionsGetFingerprintValue",
+        "TestJa4FingerprintInterface"
+      ],
+      "selected_offline": [
+        "TestJa4FingerprintType",
+        "TestJa4FingerprintValue",
+        "TestJa4FingerprintIsEmpty",
+        "TestOptionsIsJa4",
+        "TestOptionsGetFingerprintType",
+        "TestOptionsGetFingerprintValue",
+        "TestJa4FingerprintInterface"
+      ],
+      "reason": "backend fingerprint type checks retained after removing browser wrappers"
+    }
+  ]
+}

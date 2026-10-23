@@ -1,9 +1,0 @@
-[submodule "services/fastls-fetch"]
-	path = services/fastls-fetch
-	url = https://github.com/FastTLS/fastls-fetch.git
-[submodule "services/fastls-mitm"]
-	path = services/fastls-mitm
-	url = https://github.com/FastTLS/fastls-mitm.git
-[submodule "services/fastls-rpc"]
-	path = services/fastls-rpc
-	url = https://github.com/FastTLS/fastls-rpc.git

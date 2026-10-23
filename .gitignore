@@ -40,11 +40,13 @@ bin/
 # CA certificates (MITM proxy)
 mitm-ca-cert.pem
 mitm-ca-key.pem
-services/fastls-mitm/mitm-ca-cert.pem
-services/fastls-mitm/mitm-ca-key.pem
 
-# Note: _examples/, _scripts/, and _tests/ are tracked in git
-# Go modules automatically exclude directories prefixed with _
-# These directories will be in the repository but not downloaded via 'go get'
+# Note: _tests/ is tracked in git
+# go test ./... skips underscore-prefixed directories
 
 fhttp/
+
+# Generated verification output and Python caches
+reports/
+__pycache__/
+*.pyc
