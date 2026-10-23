@@ -1,6 +1,7 @@
 package fastls
 
 import (
+	"context"
 	"crypto/x509"
 	"github.com/FastTLS/fastls/profile"
 	http "github.com/FastTLS/fhttp"
@@ -12,6 +13,8 @@ import (
 )
 
 type browser struct {
+	KeepAlive            bool
+	Lifetime             context.Context
 	VerifyTLS            bool
 	TLSRootCAs           *x509.CertPool
 	Profile              *profile.Spec

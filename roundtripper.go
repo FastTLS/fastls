@@ -11,6 +11,7 @@ import (
 
 	"strings"
 	"sync"
+	"time"
 
 	stdhttp "net/http"
 
@@ -23,6 +24,8 @@ import (
 var errProtocolNegotiated = errors.New("protocol negotiated")
 
 type roundTripper struct {
+	KeepAlive            bool
+	Lifetime             context.Context
 	VerifyTLS            bool
 	TLSRootCAs           *x509.CertPool
 	Profile              *profile.Spec
@@ -38,7 +41,7 @@ type roundTripper struct {
 	http2Settings     *http2.HTTP2Settings
 
 	dialer          proxy.ContextDialer
-	transportMu     sync.Mutex
+	transportGate   chan struct{}
 	stdlibMu        sync.Mutex
 	stdlibTransport *stdhttp.Transport
 }
@@ -71,7 +74,7 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if rt.Profile != nil && req.Header.Get("User-Agent") == "" {
 		req.Header["User-Agent"] = []string{}
 	}
-	addr := rt.getDialTLSAddr(req)
+	addr := req.URL.Scheme + "://" + rt.getDialTLSAddr(req)
 	transport, err := rt.getTransport(req, addr)
 	if err != nil {
 		return nil, err
@@ -80,19 +83,36 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func (rt *roundTripper) getTransport(req *http.Request, addr string) (http.RoundTripper, error) {
-	// Serialize protocol discovery while permitting requests to use an already
-	// published transport concurrently. Map access shares dialTLS's mutex.
-	rt.transportMu.Lock()
-	defer rt.transportMu.Unlock()
 	rt.Lock()
 	transport := rt.cachedTransports[addr]
+	if rt.transportGate == nil {
+		rt.transportGate = make(chan struct{}, 1)
+	}
+	gate := rt.transportGate
 	rt.Unlock()
 	if transport != nil {
 		return transport, nil
 	}
+	// Discovery is serialized, but waiting requests retain their own deadlines.
+	select {
+	case gate <- struct{}{}:
+	case <-req.Context().Done():
+		return nil, req.Context().Err()
+	}
+	defer func() { <-gate }()
+	rt.Lock()
+	transport = rt.cachedTransports[addr]
+	origins := len(rt.cachedTransports)
+	rt.Unlock()
+	if transport != nil {
+		return transport, nil
+	}
+	if rt.KeepAlive && origins >= 128 {
+		return nil, errors.New("session origin limit exceeded (128)")
+	}
 	switch strings.ToLower(req.URL.Scheme) {
 	case "http":
-		transport = &http.Transport{DialContext: rt.dialer.DialContext, DisableKeepAlives: true}
+		transport = &http.Transport{DialContext: rt.dialer.DialContext, DisableKeepAlives: !rt.KeepAlive, MaxIdleConns: 8, MaxIdleConnsPerHost: 8, IdleConnTimeout: 90 * time.Second}
 		rt.Lock()
 		rt.cachedTransports[addr] = transport
 		rt.Unlock()
@@ -117,7 +137,7 @@ func (rt *roundTripper) getTransport(req *http.Request, addr string) (http.Round
 		}
 	}
 
-	_, err := rt.dialTLS(req.Context(), "tcp", addr)
+	_, err := rt.dialTLS(req.Context(), "tcp", strings.TrimPrefix(addr, "https://"))
 	switch err {
 	case errProtocolNegotiated:
 	case nil:
@@ -134,17 +154,19 @@ func (rt *roundTripper) getTransport(req *http.Request, addr string) (http.Round
 }
 
 func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.Conn, error) {
+	key := "https://" + addr
 	rt.Lock()
-	defer rt.Unlock()
 
 	// If we have the connection from when we determined the HTTPS
 	// cachedTransports to use, return that.
-	if conn := rt.cachedConnections[addr]; conn != nil {
+	if conn := rt.cachedConnections[key]; conn != nil {
 		// This is a one-time handoff of the ALPN discovery connection. Once
 		// handed over, only the HTTP transport owns its lifetime and reuse.
-		delete(rt.cachedConnections, addr)
+		delete(rt.cachedConnections, key)
+		rt.Unlock()
 		return conn, nil
 	}
+	rt.Unlock()
 	rawConn, err := rt.dialer.DialContext(ctx, network, addr)
 	if err != nil {
 		return nil, err
@@ -187,7 +209,9 @@ func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.
 	}
 
 	//////////
-	if rt.cachedTransports[addr] != nil {
+	rt.Lock()
+	defer rt.Unlock()
+	if rt.cachedTransports[key] != nil {
 		return conn, nil
 	}
 
@@ -200,26 +224,39 @@ func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.
 			browserType = parseUserAgent(rt.protocolUserAgent())
 		}
 		t2 := http2.Transport{
-			DialTLS:       rt.dialTLSHTTP2,
-			PushHandler:   &http2.DefaultPushHandler{},
-			Navigator:     browserType,
-			HTTP2Settings: rt.http2Settings,
+			DialTLSContext:  rt.dialTLSHTTP2Context,
+			IdleConnTimeout: 90 * time.Second,
+			DialTLS:         rt.dialTLSHTTP2,
+			PushHandler:     &http2.DefaultPushHandler{},
+			Navigator:       browserType,
+			HTTP2Settings:   rt.http2Settings,
 		}
-		rt.cachedTransports[addr] = &t2
+		rt.cachedTransports[key] = &t2
 	default:
 		// Assume the remote peer is speaking HTTP 1.x + TLS.
-		rt.cachedTransports[addr] = &http.Transport{DialTLSContext: rt.dialTLS, DisableKeepAlives: true}
+		rt.cachedTransports[key] = &http.Transport{DialTLSContext: rt.dialTLS, DisableKeepAlives: !rt.KeepAlive, MaxIdleConns: 8, MaxIdleConnsPerHost: 8, IdleConnTimeout: 90 * time.Second}
 	}
 
 	// Stash the connection just established for use servicing the
 	// actual request (should be near-immediate).
-	rt.cachedConnections[addr] = conn
+	rt.cachedConnections[key] = conn
 
 	return nil, errProtocolNegotiated
 }
 
 func (rt *roundTripper) dialTLSHTTP2(network, addr string, _ *utls.Config) (net.Conn, error) {
-	return rt.dialTLS(context.Background(), network, addr)
+	return rt.dialTLSHTTP2Context(context.Background(), network, addr, nil)
+}
+
+func (rt *roundTripper) dialTLSHTTP2Context(ctx context.Context, network, addr string, _ *utls.Config) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	var stop func() bool
+	if rt.Lifetime != nil {
+		stop = context.AfterFunc(rt.Lifetime, cancel)
+		defer stop()
+	}
+	return rt.dialTLS(ctx, network, addr)
 }
 
 // stdlibTransportAdapter 将标准库的 http.Transport 适配为 fhttp.RoundTripper
@@ -311,7 +348,11 @@ func (rt *roundTripper) getDialTLSAddr(req *http.Request) string {
 	if err == nil {
 		return net.JoinHostPort(host, port)
 	}
-	return net.JoinHostPort(req.URL.Host, "443") // we can assume port is 443 at this point
+	port = "443"
+	if req.URL.Scheme == "http" {
+		port = "80"
+	}
+	return net.JoinHostPort(req.URL.Hostname(), port)
 }
 
 func (rt *roundTripper) CloseIdleConnections() {
@@ -343,6 +384,8 @@ func (rt *roundTripper) CloseIdleConnections() {
 func newRoundTripper(browser browser, dialer ...proxy.ContextDialer) http.RoundTripper {
 	if len(dialer) > 0 {
 		return &roundTripper{
+			KeepAlive:  browser.KeepAlive,
+			Lifetime:   browser.Lifetime,
 			VerifyTLS:  browser.VerifyTLS,
 			TLSRootCAs: browser.TLSRootCAs,
 			dialer:     dialer[0],
@@ -359,6 +402,8 @@ func newRoundTripper(browser browser, dialer ...proxy.ContextDialer) http.RoundT
 	}
 
 	return &roundTripper{
+		KeepAlive:  browser.KeepAlive,
+		Lifetime:   browser.Lifetime,
 		VerifyTLS:  browser.VerifyTLS,
 		TLSRootCAs: browser.TLSRootCAs,
 		dialer:     proxy.Direct,

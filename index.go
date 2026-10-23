@@ -19,6 +19,8 @@ import (
 
 // Options 设置 Fastls 客户端选项
 type Options struct {
+	reuseConnections     bool
+	lifetime             context.Context
 	FingerprintUserAgent string               `json:"-"` // Protocol parser identity; request headers never change it.
 	FingerprintProvider  profile.Provider     `json:"-"`
 	Profile              *profile.Spec        `json:"profile,omitempty"`
@@ -79,7 +81,7 @@ type Fastls struct {
 }
 
 // processRequest 创建并准备请求上下文
-func processRequest(options *Options) (*requestContext, error) {
+func processRequest(options *Options, shared ...http.Client) (*requestContext, error) {
 	if options.Profile != nil {
 		if err := ApplyProfile(options, *options.Profile); err != nil {
 			return nil, err
@@ -112,6 +114,8 @@ func processRequest(options *Options) (*requestContext, error) {
 	}
 
 	var browser = browser{
+		KeepAlive:            options.reuseConnections,
+		Lifetime:             options.lifetime,
 		VerifyTLS:            options.VerifyTLS,
 		TLSRootCAs:           options.TLSRootCAs,
 		Fingerprint:          options.Fingerprint,
@@ -122,13 +126,19 @@ func processRequest(options *Options) (*requestContext, error) {
 		HTTP2Settings:        options.HTTP2Settings,
 	}
 
-	client, err := newClient(
-		browser,
-		options.Timeout,
-		options.DisableRedirect,
-		options.UserAgent,
-		options.Proxy,
-	)
+	var client http.Client
+	var err error
+	if len(shared) != 0 {
+		client = shared[0]
+	} else {
+		client, err = newClient(
+			browser,
+			options.Timeout,
+			options.DisableRedirect,
+			options.UserAgent,
+			options.Proxy,
+		)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("创建客户端失败: %w", err)
 	}
