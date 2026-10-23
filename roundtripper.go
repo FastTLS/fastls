@@ -25,6 +25,8 @@ import (
 
 var errProtocolNegotiated = errors.New("protocol negotiated")
 
+type duplexKey struct{}
+
 type roundTripper struct {
 	KeepAlive            bool
 	Lifetime             context.Context
@@ -51,6 +53,9 @@ type roundTripper struct {
 func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Requests without a fingerprint use the standard-library transport.
 	if rt.Profile == nil && (rt.Fingerprint == nil || rt.Fingerprint.IsEmpty()) {
+		if req.Context().Value(duplexKey{}) == true {
+			return nil, errors.New("duplex requires a fingerprinted HTTP/2 transport")
+		}
 		return rt.roundTripWithStdlib(req)
 	}
 
@@ -80,6 +85,11 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	transport, err := rt.getTransport(req, addr)
 	if err != nil {
 		return nil, err
+	}
+	if req.Context().Value(duplexKey{}) == true {
+		if _, ok := transport.(*http2.Transport); !ok {
+			return nil, errors.New("duplex requires HTTP/2; negotiated protocol is unsupported")
+		}
 	}
 	return transport.RoundTrip(req)
 }

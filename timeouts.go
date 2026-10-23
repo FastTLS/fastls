@@ -24,6 +24,7 @@ func (*TimeoutError) Unwrap() error   { return context.DeadlineExceeded }
 type requestTransport struct {
 	base   http.RoundTripper
 	limits Timeouts
+	duplex bool
 }
 
 func (t *requestTransport) CloseIdleConnections() {
@@ -62,17 +63,31 @@ func (p *phaseClock) armLocked(phase string, duration time.Duration) {
 	})
 }
 
+func (p *phaseClock) finish() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.finished = true
+	p.generation++
+	if p.timer != nil {
+		p.timer.Stop()
+	}
+}
+
 func (t *requestTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if t.limits == (Timeouts{}) {
 		return t.base.RoundTrip(req)
 	}
 	ctx, cancel := context.WithCancelCause(req.Context())
 	p := &phaseClock{cancel: cancel, limits: t.limits}
+	writeClock := &phaseClock{cancel: cancel, limits: t.limits}
 	p.mu.Lock()
 	p.armLocked("connect", t.limits.Connect)
 	p.mu.Unlock()
 	trace := &httptrace.ClientTrace{
 		GetConn: func(string) {
+			writeClock.mu.Lock()
+			writeClock.armLocked("write", 0)
+			writeClock.mu.Unlock()
 			p.mu.Lock()
 			defer p.mu.Unlock()
 			if p.gotFirst {
@@ -80,8 +95,18 @@ func (t *requestTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 			}
 			p.gotFirst = true
 		},
-		GotConn: func(httptrace.GotConnInfo) { p.mu.Lock(); defer p.mu.Unlock(); p.armLocked("write", p.limits.Write) },
+		GotConn: func(httptrace.GotConnInfo) {
+			p.mu.Lock()
+			p.armLocked("connect", 0)
+			p.mu.Unlock()
+			writeClock.mu.Lock()
+			writeClock.armLocked("write", t.limits.Write)
+			writeClock.mu.Unlock()
+		},
 		WroteRequest: func(info httptrace.WroteRequestInfo) {
+			writeClock.mu.Lock()
+			writeClock.armLocked("write", 0)
+			writeClock.mu.Unlock()
 			if info.Err == nil {
 				p.mu.Lock()
 				defer p.mu.Unlock()
@@ -91,33 +116,54 @@ func (t *requestTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	}
 	req = req.Clone(httptrace.WithClientTrace(ctx, trace))
 	if req.Body != nil && t.limits.Write > 0 {
-		req.Body = &uploadPhaseBody{ReadCloser: req.Body, clock: p}
-		stopBody := context.AfterFunc(ctx, func() { req.Body.Close() })
-		defer stopBody()
+		req.Body = &uploadPhaseBody{ReadCloser: req.Body, clock: writeClock}
+	}
+	stopBody := context.AfterFunc(ctx, func() {
+		if req.Body != nil {
+			req.Body.Close()
+		}
+		writeClock.finish()
+	})
+	cleanup := func() {
+		stopBody()
+		writeClock.finish()
+		cancel(nil)
+		if req.Body != nil {
+			req.Body.Close()
+		}
 	}
 	response, err := t.base.RoundTrip(req)
-	p.mu.Lock()
-	p.finished = true
-	p.generation++
-	if p.timer != nil {
-		p.timer.Stop()
+	p.finish()
+	if !t.duplex {
+		stopBody()
+		writeClock.finish()
 	}
-	p.mu.Unlock()
 	if ctx.Err() != nil {
 		if response != nil && response.Body != nil {
 			response.Body.Close()
 		}
 		err = context.Cause(ctx)
-		cancel(nil)
+		cleanup()
 		return nil, err
 	}
 	if err != nil {
-		cancel(nil)
+		cleanup()
 		return response, err
 	}
 	response.Body = &phaseBody{ReadCloser: response.Body, ctx: ctx, cancel: cancel, timeout: t.limits.Read}
+	if t.duplex {
+		response.Body = &duplexPhaseBody{ReadCloser: response.Body, cleanup: cleanup}
+	}
 	return response, nil
 }
+
+type duplexPhaseBody struct {
+	io.ReadCloser
+	once    sync.Once
+	cleanup func()
+}
+
+func (b *duplexPhaseBody) Close() error { b.once.Do(b.cleanup); return b.ReadCloser.Close() }
 
 // Write inactivity includes waiting for the producer and transport consumption.
 // Reset only when transport consumes data, never when the caller queues data.

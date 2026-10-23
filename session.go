@@ -25,6 +25,10 @@ type Session struct {
 
 // RequestOptions contains fields which may vary without changing the transport identity.
 type RequestOptions struct {
+	// Duplex enables concurrent upload/download over fingerprinted HTTP/2.
+	// Redirects are returned. Upload EOF permits more response reads; response EOF
+	// or Close cancels any remaining upload.
+	Duplex          bool
 	Timeouts        Timeouts
 	DecodeContent   bool
 	MaxDecodedBytes int64
@@ -110,7 +114,7 @@ func (s *Session) DoContext(ctx context.Context, url string, request RequestOpti
 		opts.Headers[name] = value
 	}
 	client := s.client // Transport is shared; redirect policy is local to the request.
-	client.Transport = &requestTransport{base: client.Transport, limits: request.Timeouts}
+	client.Transport = &requestTransport{base: client.Transport, limits: request.Timeouts, duplex: request.Duplex}
 	for name := range opts.HeaderValues {
 		if strings.EqualFold(name, "Cookie") {
 			client.Jar = outgoingCookieOverride{CookieJar: client.Jar}
@@ -124,7 +128,7 @@ func (s *Session) DoContext(ctx context.Context, url string, request RequestOpti
 		}
 	}
 	client.CheckRedirect = nil
-	if request.DisableRedirect {
+	if request.DisableRedirect || request.Duplex {
 		client.CheckRedirect = disabledRedirect
 	}
 	prepared, err := processRequest(&opts, client)
@@ -133,12 +137,17 @@ func (s *Session) DoContext(ctx context.Context, url string, request RequestOpti
 		return Response{}, err
 	}
 	prepared.req = prepared.req.WithContext(ctx)
+	if request.Duplex {
+		prepared.req = prepared.req.WithContext(context.WithValue(prepared.req.Context(), duplexKey{}, true))
+	}
 	if request.BodyReader != nil {
 		prepared.req.Body = request.BodyReader
 		prepared.req.GetBody = nil
 		prepared.req.ContentLength = -1
 		stopBody := context.AfterFunc(ctx, func() { request.BodyReader.Close() })
-		defer stopBody()
+		if !request.Duplex {
+			defer stopBody()
+		}
 	}
 	response, err := dispatcher(prepared)
 	if err != nil {
