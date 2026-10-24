@@ -58,4 +58,4 @@ func fetch(ctx context.Context, target string) ([]byte, error) {
 
 ## 许可证
 
-当前仓库没有 LICENSE 文件，正式发布前需确认授权与许可证。
+Fastls 自有代码采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。独立 Go 子模块随附同一许可证。第三方代码和依赖保留原许可证，随附材料及尚待核实的来源见 [第三方声明](THIRD_PARTY_NOTICES.md)；该选择不改变第三方授权或表示正式发布已经完成。

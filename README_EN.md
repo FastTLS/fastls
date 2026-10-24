@@ -58,4 +58,4 @@ Close response bodies after use. Requests without a fingerprint return after res
 
 ## License
 
-This repository currently has no LICENSE file. Authorization and licensing must be confirmed before publication.
+FastTLS-authored Fastls code is licensed under the [Apache License 2.0](LICENSE); see [NOTICE](NOTICE). Independent Go submodules carry the same license. Third-party code and dependencies retain their original terms; see [third-party notices and remaining provenance checks](THIRD_PARTY_NOTICES.md). This license selection does not relicense third-party works or constitute release approval.
