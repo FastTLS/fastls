@@ -8,11 +8,9 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	fhttp "github.com/FastTLS/fhttp"
 )
 
-func fingerprintTestClient(t *testing.T, handler http.Handler, h2 bool) (*fhttp.Client, *httptest.Server) {
+func fingerprintTestClient(t *testing.T, handler http.Handler, h2 bool) (*http.Client, *httptest.Server) {
 	t.Helper()
 	s := httptest.NewUnstartedServer(handler)
 	s.EnableHTTP2 = h2
@@ -20,12 +18,12 @@ func fingerprintTestClient(t *testing.T, handler http.Handler, h2 bool) (*fhttp.
 	t.Cleanup(s.Close)
 	// ALPN advertises H2 and HTTP/1.1; the server controls the selected protocol.
 	rt := newRoundTripper(browser{Fingerprint: Ja3Fingerprint{FingerprintValue: "771,4865-4866-4867,0-10-13-16-43-45-51,29-23-24,"}})
-	c := &fhttp.Client{Transport: rt, Timeout: 3 * time.Second}
+	c := &http.Client{Transport: rt, Timeout: 3 * time.Second}
 	t.Cleanup(c.CloseIdleConnections)
 	return c, s
 }
 
-func readFingerprintResponse(c *fhttp.Client, url string) error {
+func readFingerprintResponse(c *http.Client, url string) error {
 	r, err := c.Get(url)
 	if err != nil {
 		return err
