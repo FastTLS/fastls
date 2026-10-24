@@ -1,5 +1,5 @@
 {
-  "scope": "Core host-selected dependency notice snapshot, not a complete source-provenance or binary-distribution approval. FastTLS/fhttp has no root license in this checkout and requires separate provenance review.",
+  "scope": "Core host-selected dependency notice snapshot. Known Go-origin BSD text for FastTLS/fhttp is included; authorization scope for independent fhttp additions remains unresolved. Not a complete binary-distribution approval.",
   "apache_source": "https://www.apache.org/licenses/LICENSE-2.0.txt",
   "apache_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
   "dependencies": [
@@ -202,6 +202,20 @@
           "path": "third_party/licenses/go/LICENSE",
           "upstream_path": "LICENSE",
           "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+        }
+      ]
+    },
+    {
+      "module": "github.com/FastTLS/fhttp",
+      "version": "e027ce786984d3e7e831b0d10c54875dec746b35",
+      "license_scope": "Go-origin portions only",
+      "status": "partial; independent fhttp additions unresolved",
+      "files": [
+        {
+          "path": "third_party/licenses/fhttp-go-origin/Go-BSD-3-Clause",
+          "upstream_path": "vendor/golang.org/x/net/LICENSE",
+          "upstream_commit": "f2903183edbd3bcf43b6b2e89e0ebfb086216bf9",
+          "sha256": "2d36597f7117c38b006835ae7f537487207d8ec407aa9d9980794b2030cbc067"
         }
       ]
     }

@@ -1,0 +1,115 @@
+{
+  "reviewed_at": "2026-10-24",
+  "reviewed_repository": "FastTLS/fhttp",
+  "reviewed_commit": "e027ce786984d3e7e831b0d10c54875dec746b35",
+  "reviewed_branch": "v2",
+  "history": {
+    "shallow": false,
+    "reachable_commits": 84,
+    "initial_commit": "b2679848da50773c47818642c1e64a9cf803a8f4",
+    "direct_upstream_commit": "eeeb0b347ce1dd26f36a69b009ac654dcf75ee84",
+    "upstream_commit_is_ancestor": true,
+    "upstream_module_declaration": "module github.com/Danny-Dasilva/fhttp",
+    "repository_level_notice_paths_seen": [],
+    "historical_dependency_notice_paths": [
+      "vendor/github.com/andybalholm/brotli/LICENSE",
+      "vendor/golang.org/x/net/LICENSE",
+      "vendor/golang.org/x/net/PATENTS",
+      "vendor/golang.org/x/sys/LICENSE",
+      "vendor/golang.org/x/sys/PATENTS",
+      "vendor/golang.org/x/term/LICENSE",
+      "vendor/golang.org/x/term/PATENTS",
+      "vendor/golang.org/x/text/LICENSE",
+      "vendor/golang.org/x/text/PATENTS"
+    ]
+  },
+  "source_files": {
+    "tracked_go_files": 159,
+    "files_containing_go_authors_notice": 150,
+    "files_without_go_authors_notice": [
+      "example_client_test.go",
+      "http2/explicit_settings_test.go",
+      "http2/fhttp_test.go",
+      "http2/header_order_test.go",
+      "http2/pooled_dial_context_test.go",
+      "http2/receive_window_test.go",
+      "http2/streaming_upload_test.go",
+      "internal/profile/proto_test.go",
+      "socks_bundle.go"
+    ]
+  },
+  "go_license": {
+    "scope": "Go-origin portions only; not a repository-wide fhttp grant",
+    "historical_commit": "f2903183edbd3bcf43b6b2e89e0ebfb086216bf9",
+    "historical_path": "vendor/golang.org/x/net/LICENSE",
+    "reference_url": "https://raw.githubusercontent.com/golang/go/go1.16/LICENSE",
+    "historical_copy_matches_go_1_16": true,
+    "saved_path": "third_party/licenses/fhttp-go-origin/Go-BSD-3-Clause",
+    "sha256": "2d36597f7117c38b006835ae7f537487207d8ec407aa9d9980794b2030cbc067"
+  },
+  "github_repository_snapshots": [
+    {
+      "repository": "FastTLS/fhttp",
+      "default_branch": "main",
+      "head": "c92dcb0e2f2dfd39c259b5bcdc14fedbbca8f850",
+      "license_detection": null,
+      "parent": "Danny-Dasilva/fhttp",
+      "source": "useflyent/fhttp",
+      "root_legal_files": []
+    },
+    {
+      "repository": "Danny-Dasilva/fhttp",
+      "default_branch": "main",
+      "head": "41258808b131cb226638cfdfb97e5011f3346a35",
+      "license_detection": null,
+      "parent": "useflyent/fhttp",
+      "source": "useflyent/fhttp",
+      "root_legal_files": []
+    },
+    {
+      "repository": "Carcraftz/fhttp",
+      "default_branch": "master",
+      "head": "f36cd20af880ce9bbc8f9db4d02367e14f136ac8",
+      "license_detection": null,
+      "parent": "useflyent/fhttp",
+      "source": "useflyent/fhttp",
+      "root_legal_files": []
+    },
+    {
+      "repository": "Noooste/fhttp",
+      "default_branch": "master",
+      "head": "27d1f44cf2d3711807eb8df87fc4612975e6254e",
+      "license_detection": null,
+      "parent": "bogdanfinn/fhttp",
+      "source": "useflyent/fhttp",
+      "root_legal_files": []
+    },
+    {
+      "repository": "bogdanfinn/fhttp",
+      "default_branch": "master",
+      "head": "4c3fb9f6affef5419f9df043b2c590e8c1926747",
+      "license_detection": null,
+      "parent": "Carcraftz/fhttp",
+      "source": "useflyent/fhttp",
+      "root_legal_files": []
+    },
+    {
+      "repository": "useflyent/fhttp",
+      "default_branch": "master",
+      "head": "333f430cfbbf7772837a2bef6e8bd2d1a37a9a44",
+      "license_detection": null,
+      "parent": null,
+      "source": null,
+      "root_legal_files": []
+    }
+  ],
+  "conclusion": {
+    "go_origin_bsd_text_verified": true,
+    "fhttp_specific_authorization_verified": false,
+    "note": "Existing Go Authors file headers and known BSD text are evidence for Go-origin portions. No explicit repository-wide grant for independent fhttp additions was found in the reviewed history and root snapshots. Automated license detection is corroboration, not a legal conclusion.",
+    "next_steps": [
+      "Obtain explicit upstream clarification covering inherited fhttp contributions, or replace the affected implementation with independently authorized code.",
+      "Do not assign Apache-2.0 or a blanket BSD identifier to all fhttp code based solely on Go file headers."
+    ]
+  }
+}

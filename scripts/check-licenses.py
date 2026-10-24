@@ -38,11 +38,11 @@ def main():
     # Source archives must carry all licenses even for independent submodules.
     archive = subprocess.check_output(["git", "archive", "--format=zip", "HEAD"], cwd=ROOT)
     with zipfile.ZipFile(io.BytesIO(archive)) as source:
-        for name in expected + ["THIRD_PARTY_NOTICES.md", "third_party/licenses/manifest.json"]:
+        for name in expected + ["THIRD_PARTY_NOTICES.md", "third_party/licenses/manifest.json", "third_party/fhttp-provenance.json"]:
             assert name in source.namelist(), "source archive lacks " + name
             assert source.read(name).replace(b"\r\n", b"\n") == (ROOT / name).read_bytes().replace(b"\r\n", b"\n"), name
     print(f"License materials passed: {len(modules)} Go modules, {len(manifest['dependencies'])} notice sources, source archive included.")
-    print("This checks supplied texts and packaging; unresolved fhttp provenance remains a release prerequisite.")
+    print("Go-origin fhttp BSD text is verified; the grant for fhttp-specific contributions remains unconfirmed. This check is not release approval.")
 
 
 if __name__ == "__main__":
