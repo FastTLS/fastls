@@ -3,9 +3,11 @@ package fastls
 import (
 	"context"
 	"crypto/x509"
+	"errors"
 	"github.com/FastTLS/fastls/profile"
 	http "github.com/FastTLS/fhttp"
 	"github.com/FastTLS/fhttp/http2"
+	"net/url"
 
 	"time"
 
@@ -53,7 +55,18 @@ func newClient(browser browser, timeout int, disableRedirect bool, UserAgent str
 	// Check if a valid proxyURL is provided.
 	if len(proxyURL) > 0 && len(proxyURL[0]) > 0 {
 		var err error
-		dialer, err = newConnectDialer(proxyURL[0], UserAgent)
+		parsed, parseErr := url.Parse(proxyURL[0])
+		if parseErr != nil {
+			err = errors.New("invalid proxy URL")
+		} else if parsed.Scheme == "http" || parsed.Scheme == "socks5" || parsed.Scheme == "socks5h" {
+			endpoint, validationErr := parseTunnelProxy(proxyURL[0])
+			err = validationErr
+			if err == nil {
+				dialer = &tunnelProxyDialer{endpoint: endpoint}
+			}
+		} else {
+			dialer, err = newConnectDialer(proxyURL[0], UserAgent)
+		}
 		if err != nil {
 			return http.Client{
 				Timeout:       time.Duration(timeout) * time.Second,
