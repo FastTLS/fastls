@@ -111,6 +111,47 @@ func TestFingerprintConnectionCloseIdlePreservesActiveBody(t *testing.T) {
 	}
 }
 
+func TestFingerprintHTTP2CloseIdleReusesConnectionWithActiveStream(t *testing.T) {
+	release := make(chan struct{})
+	c, s := fingerprintTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Test-Connection", r.RemoteAddr)
+		if r.URL.Path == "/hold" {
+			fmt.Fprint(w, "first")
+			w.(http.Flusher).Flush()
+			select {
+			case <-release:
+				fmt.Fprint(w, "last")
+			case <-r.Context().Done():
+			}
+			return
+		}
+		fmt.Fprint(w, "ok")
+	}), true)
+	active, err := c.Get(s.URL + "/hold")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer active.Body.Close()
+	warm := active.Header.Get("X-Test-Connection")
+	if warm == "" {
+		t.Fatal("active response did not identify its connection")
+	}
+
+	c.CloseIdleConnections()
+	next, err := c.Get(s.URL + "/next")
+	if err != nil {
+		t.Fatal(err)
+	}
+	next.Body.Close()
+	if got := next.Header.Get("X-Test-Connection"); got != warm {
+		t.Fatalf("active HTTP/2 connection was detached by CloseIdleConnections: got %q, want %q", got, warm)
+	}
+	close(release)
+	if body, err := io.ReadAll(active.Body); err != nil || string(body) != "firstlast" {
+		t.Fatalf("active body=%q, err=%v", body, err)
+	}
+}
+
 func TestFingerprintConnectionConcurrent(t *testing.T) {
 	c, s := fingerprintTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, "ok") }), false)
 	var wg sync.WaitGroup

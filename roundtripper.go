@@ -297,15 +297,14 @@ func (rt *roundTripper) CloseIdleConnections() {
 	pending := rt.pendingConnection
 	rt.pendingConnection = make(map[string]ftransport.DialResult)
 	transports := make([]http.RoundTripper, 0, len(rt.cachedTransports))
-	for _, transport := range rt.cachedTransports {
+	for key, transport := range rt.cachedTransports {
 		transports = append(transports, transport)
+		stats, tracked := transport.(interface{ Stats() ftransport.Stats })
+		if !tracked || stats.Stats().Active == 0 {
+			delete(rt.cachedTransports, key)
+			delete(rt.cachedProtocols, key)
+		}
 	}
-	// Detach every origin before closing its idle pool. A just-finished HTTP/2
-	// stream can remain internally active for a brief cleanup window; detaching
-	// guarantees that later requests cannot reacquire that old pool without
-	// interrupting any request which already holds it.
-	rt.cachedTransports = make(map[string]http.RoundTripper)
-	rt.cachedProtocols = make(map[string]ftransport.Protocol)
 	rt.mu.Unlock()
 	for _, result := range pending {
 		if result.Conn != nil {
