@@ -59,9 +59,16 @@ func DialWebSocketContext(ctx context.Context, endpoint string, options Options,
 		headers.Set("User-Agent", options.UserAgent)
 	}
 	var bounded *wsHandshakeConn
+	var stopHandshake func() bool
+	defer func() {
+		if stopHandshake != nil {
+			stopHandshake()
+		}
+	}()
 	wrap := func(conn net.Conn) net.Conn {
 		bounded = &wsHandshakeConn{Conn: conn, left: 65536}
 		bounded.limited.Store(true)
+		stopHandshake = context.AfterFunc(ctx, func() { conn.Close() })
 		return bounded
 	}
 	d := websocket.Dialer{Proxy: nil, EnableCompression: false, ReadBufferSize: 4096, WriteBufferSize: 16384,
@@ -120,6 +127,9 @@ func DialWebSocketContext(ctx context.Context, endpoint string, options Options,
 		return wrap(conn), nil
 	}
 	c, resp, err := d.DialContext(ctx, endpoint, headers)
+	if err != nil && ctx.Err() != nil {
+		err = ctx.Err()
+	}
 	if bounded != nil {
 		bounded.limited.Store(false)
 	}

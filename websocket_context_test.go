@@ -61,14 +61,36 @@ func TestWebSocketVerifiedTLSAndHTTP1(t *testing.T) {
 }
 
 func TestWebSocketHandshakeContextCancellation(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { <-r.Context().Done() }))
+	received := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { close(received); <-r.Context().Done() }))
 	defer server.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	opts := Options{Fingerprint: Ja3Fingerprint{FingerprintValue: "771,4865-4866-4867,0-10-13-16-43-45-51,29-23-24,"}}
-	_, _, err := DialWebSocketContext(ctx, strings.Replace(server.URL, "http", "ws", 1), opts, nil)
-	if err == nil || !errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		t.Fatal("handshake did not honor context", err)
+	finished := make(chan error, 1)
+	go func() {
+		c, _, err := DialWebSocketContext(ctx, strings.Replace(server.URL, "http", "ws", 1), opts, nil)
+		if c != nil {
+			c.Close()
+		}
+		finished <- err
+	}()
+	select {
+	case <-received:
+	case <-time.After(3 * time.Second):
+		server.CloseClientConnections()
+		t.Fatal("server never received handshake")
+	}
+	cancel()
+	select {
+	case err := <-finished:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatal("handshake did not honor cancellation", err)
+		}
+	case <-time.After(time.Second):
+		server.CloseClientConnections()
+		<-finished
+		t.Fatal("cancel did not unblock Upgrade response read")
 	}
 }
 
