@@ -8,10 +8,10 @@ on:
         description: Reviewed FastTLS/imitate ref
         required: true
         default: main
-      fhttp_ref:
-        description: Reviewed FastTLS/fhttp ref
+      ftransport_ref:
+        description: Reviewed FastTLS/ftransport ref
         required: true
-        default: v2
+        default: 46a3d86770551169642e4422bdcfa2eb9076167b
       lab_ref:
         description: Reviewed FastTLS/fastls-lab ref
         required: true
@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        go: ['1.24.11', '1.26.10']
+        go: ['1.26.10', '1.27.3']
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -39,9 +39,9 @@ jobs:
           path: workspace/imitate
       - uses: actions/checkout@v4
         with:
-          repository: FastTLS/fhttp
-          ref: ${{ inputs.fhttp_ref }}
-          path: workspace/fhttp
+          repository: FastTLS/ftransport
+          ref: ${{ inputs.ftransport_ref }}
+          path: workspace/ftransport
       - uses: actions/checkout@v4
         with:
           repository: FastTLS/fastls-lab

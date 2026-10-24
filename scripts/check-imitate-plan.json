@@ -404,29 +404,27 @@
       "required": true
     },
     {
-      "id": "fhttp.explicit",
+      "id": "ftransport.contract",
       "task_id": "IP07",
       "category": "provider",
-      "directory": "../fhttp",
+      "directory": "../ftransport",
       "command": [
         "go",
         "test",
-        "./http2",
-        "-run",
-        "TestExplicit|TestConnectionSettings",
+        "./...",
         "-v"
       ],
       "required": true
     },
     {
-      "id": "fhttp.vet",
+      "id": "ftransport.vet",
       "task_id": "IP07",
       "category": "provider",
-      "directory": "../fhttp",
+      "directory": "../ftransport",
       "command": [
         "go",
         "vet",
-        "./http2"
+        "./..."
       ],
       "required": true
     },
@@ -561,7 +559,7 @@
       "directory": ".",
       "command": [],
       "required": false,
-      "reason": "not published: public profile/fhttp/core/imitate versions and licensing await a separately authorized release"
+      "reason": "not published: public profile/ftransport/core/imitate versions await a separately authorized release"
     },
     {
       "id": "linux.runtime",
@@ -583,8 +581,8 @@
       "reason": "explicit network suite: python scripts/check-peet.py; FASTLS_PEET_NETWORK=1 required"
     },
     {
-      "path": "../fhttp/http2/h2demo",
-      "reason": "independent legacy demo module with pre-existing dependency changes; inventory in A01"
+      "path": "../ftransport/third_party/xnet",
+      "reason": "audited provenance snapshot is a nested module; production code is verified through internal/xnet"
     },
     {
       "path": "../utls;../quic-go",

@@ -20,8 +20,18 @@ import xml.etree.ElementTree as ET
 CORE = Path(__file__).resolve().parents[1]
 ROOT = CORE.parent
 VERSION = "v0.1.0-dev.20261023.8"
-MODULES = {"fastls/profile": "github.com/FastTLS/fastls/profile", "fhttp": "github.com/FastTLS/fhttp", "fastls": "github.com/FastTLS/fastls", "imitate": "github.com/FastTLS/imitate"}
+FTRANSPORT_VERSION = "v0.0.0-20261024114754-46a3d8677055"
+MODULES = {"fastls/profile": "github.com/FastTLS/fastls/profile", "ftransport": "github.com/FastTLS/ftransport", "fastls": "github.com/FastTLS/fastls", "imitate": "github.com/FastTLS/imitate"}
+VERSIONS = {module: FTRANSPORT_VERSION if relative == "ftransport" else VERSION for relative, module in MODULES.items()}
 ACTIVE_OUT = None
+
+
+def module_path(relative):
+    if relative == "fastls":
+        return CORE
+    if relative.startswith("fastls/"):
+        return CORE / relative.removeprefix("fastls/")
+    return ROOT / relative
 
 
 def run(args, directory, env=None):
@@ -62,6 +72,38 @@ def save(path, data):
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def source_workspace(out):
+    """Create an isolated workspace for checks against the candidate sources.
+
+    Candidate-package and consumer checks deliberately keep GOWORK=off. Source
+    checks use this workspace so an older go.sum cannot mistake newly packed
+    local candidates that retain the reviewed development version for a supply
+    chain substitution.
+    """
+    workspace = out / "source.work"
+    modules = (
+        CORE,
+        CORE / "profile",
+        CORE / "integration/imitate",
+        CORE / "tools/fastls-check",
+        ROOT / "ftransport",
+        ROOT / "imitate",
+        ROOT / "fastls-lab",
+    )
+    missing = [path for path in modules if not (path / "go.mod").is_file()]
+    if missing:
+        raise RuntimeError("source workspace modules are missing: " + ", ".join(map(str, missing)))
+    lines = ["go 1.26.0", "", "use ("]
+    lines.extend(f"\t{Path(os.path.relpath(path.resolve(), workspace.parent)).as_posix()}" for path in modules)
+    lines.extend((")", ""))
+    for relative, module in MODULES.items():
+        target = Path(os.path.relpath(module_path(relative).resolve(), workspace.parent)).as_posix()
+        lines.append(f"replace {module} {VERSIONS[module]} => {target}")
+    lines.append("")
+    workspace.write_text("\n".join(lines), encoding="utf-8")
+    return workspace
+
+
 def write_failure(out, error):
     failure=Path(tempfile.mkdtemp(prefix="orchestrator-failure-",dir=out))
     detail={"status":"tool_error","exit_code":2,"message":str(error),"phase":"candidate preparation or boundary experiment"}
@@ -80,19 +122,16 @@ def prepare(out, network=False):
     snapshots = {}
     env = dict(os.environ, GOWORK="off", GOPROXY=proxy.as_uri() + "," + (shared_cache / "cache/download").as_uri() + (",https://proxy.golang.org,direct" if network else ",off"), GONOSUMDB="github.com/FastTLS/*", GOMODCACHE=str(out / "module-cache"), GOFLAGS="-mod=mod")
     env["FASTLS_IMITATE_RUN"] = str(out)
-    # Publish only to the private file proxy, in dependency order. Populate
-    # dependency sums before packing their dependents, so snapshots are fixed.
-    for relative in ("fastls/profile", "fhttp"):
-        run(["go", "mod", "download"], ROOT / relative, env)
-        pack(ROOT / relative, MODULES[relative], VERSION, proxy)
+    # Publish only to the private file proxy, in dependency order. Candidate
+    # source trees are never rewritten; dependency sums are resolved by the
+    # isolated consumers which exercise the private proxy.
+    for relative in ("fastls/profile", "ftransport"):
+        pack(module_path(relative), MODULES[relative], VERSIONS[MODULES[relative]], proxy)
     for relative in ("fastls", "imitate"):
-        run(["go", "mod", "download"], ROOT / relative, env)
-        run(["go","mod","download",MODULES["fastls/profile"]+"@"+VERSION],ROOT / relative,env)
-        if relative=="fastls":run(["go","mod","download",MODULES["fhttp"]+"@"+VERSION],ROOT / relative,env)
-        pack(ROOT / relative, MODULES[relative], VERSION, proxy)
+        pack(module_path(relative), MODULES[relative], VERSION, proxy)
     for relative,module in MODULES.items():
-        source=ROOT / relative
-        snapshots[module] = {"version": VERSION, "source_sha256": digest(source), "head": run(["git", "rev-parse", "HEAD"], source).strip() if relative != "imitate" else "uncommitted initial repository"}
+        source=module_path(relative)
+        snapshots[module] = {"version": VERSIONS[module], "source_sha256": digest(source), "head": run(["git", "rev-parse", "HEAD"], source).strip() if relative != "imitate" else "uncommitted initial repository"}
     save(out / "candidates.json", {"published": False, "modules": snapshots, "proxy": proxy.as_uri(), "note": "Local immutable file-proxy candidates; GOWORK=off; not evidence of public availability."})
     save(out / "environment.json", {k: env[k] for k in ("GOWORK", "GOPROXY", "GOMODCACHE", "GONOSUMDB", "GOFLAGS")})
     return env
@@ -101,7 +140,7 @@ def prepare(out, network=False):
 def graph_checks(out, env):
     # A physically separate cache must not acquire the generator at all.
     no_gen = out / "without-generator"; no_gen.mkdir(exist_ok=True)
-    (no_gen / "go.mod").write_text(f"module no-generator\n\ngo 1.24\nrequire github.com/FastTLS/fastls {VERSION}\n", encoding="utf-8")
+    (no_gen / "go.mod").write_text(f"module no-generator\n\ngo 1.26.0\nrequire github.com/FastTLS/fastls {VERSION}\n", encoding="utf-8")
     (no_gen / "main.go").write_text('''package main
 import ("errors";"fmt";"io";"os"; f "github.com/FastTLS/fastls"; "github.com/FastTLS/fastls/imitate"; "github.com/FastTLS/fastls/profile")
 func main(){
@@ -127,14 +166,14 @@ func main(){
         lab_process.terminate();lab_process.wait(timeout=10)
     assert not list((out / "no-generator-cache/github.com/!fast!t!l!s").glob("imitate@*"))
     gen = out / "generator-alone"; gen.mkdir(exist_ok=True)
-    (gen / "go.mod").write_text(f"module generator-alone\n\ngo 1.24\nrequire github.com/FastTLS/imitate {VERSION}\n", encoding="utf-8")
+    (gen / "go.mod").write_text(f"module generator-alone\n\ngo 1.26.0\nrequire github.com/FastTLS/imitate {VERSION}\n", encoding="utf-8")
     (gen / "main.go").write_text('''package main
 import("context";"encoding/json";"os";"github.com/FastTLS/imitate";"github.com/FastTLS/fastls/profile")
 func main(){r,e:=imitate.New().Resolve(context.Background(),profile.ResolveRequest{Selector:"chrome/155/windows"});if e!=nil{panic(e)};json.NewEncoder(os.Stdout).Encode(r)}
 ''', encoding="utf-8")
     deps_gen = [p for p in run(["go", "list", "-deps", "."], gen, env).splitlines() if p and " " not in p]
     assert "github.com/FastTLS/imitate" in deps_gen and "github.com/FastTLS/fastls/profile" in deps_gen
-    forbidden = ("github.com/FastTLS/fhttp", "github.com/refraction-networking/utls", "github.com/quic-go/")
+    forbidden = ("github.com/FastTLS/ftransport", "github.com/refraction-networking/utls", "github.com/quic-go/")
     assert not any(p == "github.com/FastTLS/fastls" or p.startswith(forbidden) or p.startswith("github.com/FastTLS/fastls/imitate") for p in deps_gen)
     result = json.loads(run(["go", "run", "."], gen, env).splitlines()[-1])
     assert result["match"]["provider_id"] == "FastTLS/imitate"
@@ -143,7 +182,7 @@ func main(){r,e:=imitate.New().Resolve(context.Background(),profile.ResolveReque
 
 
 def upgrade_checks(out, env):
-    before = {name: digest(ROOT / name) for name in ("fastls", "fastls/profile", "fhttp")}
+    before = {name: digest(module_path(name)) for name in ("fastls", "fastls/profile", "ftransport")}
     work = Path(tempfile.mkdtemp(prefix="upgrade-",dir=out))
     variant = work / "generator-candidate-B"
     shutil.copytree(ROOT / "imitate", variant, ignore=shutil.ignore_patterns(".git", "go.sum"))
@@ -173,7 +212,7 @@ func main(){o:=f.Options{Timeout:5};m,e:=imitate.Use(&o,os.Getenv("TEST_SELECTOR
         manifest = json.loads(lab.stdout.readline())
         test_env = dict(env, TEST_URL=manifest["https"].replace("127.0.0.1", "localhost"), TEST_SELECTOR="library/fastls/2/any/update-demo")
         def probe_version(version, selector):
-            (probe / "go.mod").write_text(f"module upgrade-probe\n\ngo 1.24\nrequire (\ngithub.com/FastTLS/fastls {VERSION}\ngithub.com/FastTLS/imitate {version}\n)\n", encoding="utf-8")
+            (probe / "go.mod").write_text(f"module upgrade-probe\n\ngo 1.26.0\nrequire (\ngithub.com/FastTLS/fastls {VERSION}\ngithub.com/FastTLS/imitate {version}\n)\n", encoding="utf-8")
             return json.loads(run(["go", "run", "."], probe, dict(test_env, TEST_SELECTOR=selector)).splitlines()[-1])
         a = probe_version(VERSION, test_env["TEST_SELECTOR"])
         b = probe_version(version_b, test_env["TEST_SELECTOR"])
@@ -182,7 +221,7 @@ func main(){o:=f.Options{Timeout:5};m,e:=imitate.Use(&o,os.Getenv("TEST_SELECTOR
         fixed_a={d["Path"]:(d["Version"],d.get("Sum")) for d in a["build"]["Deps"] if d["Path"]!="github.com/FastTLS/imitate"}
         fixed_b={d["Path"]:(d["Version"],d.get("Sum")) for d in b["build"]["Deps"] if d["Path"]!="github.com/FastTLS/imitate"}
         assert fixed_a==fixed_b
-        after = {name: digest(ROOT / name) for name in before}
+        after = {name: digest(module_path(name)) for name in before}
         assert before == after
         save(out / "generator-only-update.json", {"status": "pass", "fixed_sources_before": before, "fixed_sources_after": after, "generator_A": a, "generator_B": b, "unsupported": unsupported, "lab": manifest})
     finally:
@@ -205,15 +244,15 @@ def main():
     out = out.resolve(); out.mkdir(parents=True, exist_ok=True)
     ACTIVE_OUT=out
     if a.cross_build:
-        env=dict(os.environ,GOWORK="off",GOOS=a.cross_build,GOARCH="amd64",CGO_ENABLED="0")
+        env=dict(os.environ,GOWORK=str(source_workspace(out)),GOOS=a.cross_build,GOARCH="amd64",CGO_ENABLED="0")
         evidence=[]
-        for relative,pattern in [("fastls/profile","./..."),("imitate","./..."),("fastls","./..."),("fastls/integration/imitate","./..."),("fastls-lab","./..."),("fhttp","./http2")]:
+        for relative,pattern in [("fastls/profile","./..."),("imitate","./..."),("fastls","./..."),("fastls/integration/imitate","./..."),("fastls-lab","./..."),("ftransport","./...")]:
             target=out / "cross-linux" / relative.replace("/","_");target.mkdir(parents=True,exist_ok=True)
-            log=run(["go","test","-c","-o",str(target),pattern],ROOT / relative,env)
+            log=run(["go","test","-c","-o",str(target),pattern],module_path(relative),env)
             evidence.append({"module":relative,"target":"linux/amd64","status":"compiled","executed":False,"log":log})
         save(out / "linux-cross-build.json",evidence);print("Linux test binaries compiled; no Linux execution claimed");return
     if a.race or a.race_canary:
-        env = dict(os.environ, GOWORK="off", CGO_ENABLED="1")
+        env = dict(os.environ, GOWORK="off" if a.race_canary else str(source_workspace(out)), CGO_ENABLED="1")
         zig = ROOT / "reports/imitate-implementation/toolchain/zig-x86_64-windows-0.14.1/zig.exe"
         flags=[]
         if os.name == "nt" and zig.exists():
@@ -224,15 +263,15 @@ def main():
             flags=['-exec="'+sys.executable.replace('\\','/')+'" "'+wrapper.as_posix()+'"']
         if a.race_canary:
             canary=out / "race-canary";canary.mkdir(exist_ok=True)
-            (canary / "go.mod").write_text("module race-canary\n\ngo 1.24\n",encoding="utf-8")
+            (canary / "go.mod").write_text("module race-canary\n\ngo 1.26.0\n",encoding="utf-8")
             (canary / "main.go").write_text('package main;import "sync";func main(){var x int;var w sync.WaitGroup;w.Add(2);go func(){defer w.Done();x=1}();go func(){defer w.Done();x=2}();w.Wait();_=x}',encoding="utf-8")
             result=subprocess.run(["go","run","-race",*flags,"."],cwd=canary,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding="utf-8",errors="replace",timeout=180)
             assert result.returncode!=0 and "WARNING: DATA RACE" in result.stdout,result.stdout
             (out / "race-canary.log").write_text(result.stdout,encoding="utf-8")
             print("race detector canary correctly detected an intentional race");return
-        print(run(["go", "test", "-race", "-count=1",*flags,"./..."], ROOT / a.race, env)); return
+        print(run(["go", "test", "-race", "-count=1",*flags,"./..."], module_path(a.race), env)); return
     if a.graphs or a.upgrade:
-        env = dict(os.environ, GOWORK="off")
+        env = dict(os.environ, GOWORK="off", GOFLAGS="-mod=mod")
         if a.graphs: graph_checks(out, env)
         if a.upgrade: upgrade_checks(out, env)
         return
@@ -244,7 +283,7 @@ def main():
     graph_checks(out, env); upgrade_checks(out, env)
     plan = json.loads((CORE / "scripts/check-imitate-plan.json").read_text(encoding="utf-8"))
     if a.public_matrix:
-        prefixes=("core.","profile.","generator.","integration.","fhttp.","race.","fastls-lab.","legacy.","linux.")
+        prefixes=("core.","profile.","generator.","integration.","ftransport.","race.","fastls-lab.","legacy.","linux.")
         skipped=[step for step in plan["steps"] if not step["id"].startswith(prefixes) and step["command"] and not step["id"].startswith("consumer.")]
         plan["steps"]=[step for step in plan["steps"] if step not in skipped]
         plan["excluded"].extend({"path":step["directory"],"reason":"previous-stage service/tool outside the public imitate matrix"} for step in skipped)
@@ -254,9 +293,12 @@ def main():
         for step in plan["steps"]:
             if step["id"].startswith("consumer."):step.update(command=[],required=False,reason="private consumer checkout unavailable on public CI; local acceptance is reported separately")
     save(out / "plan.json", plan)
+    source_env = dict(env, GOWORK=str(source_workspace(out)))
+    source_env.pop("GOFLAGS", None)
+    source_env["FASTLS_CHECK_GOWORK"] = source_env["GOWORK"]
     executable = out / ("fastls-check.exe" if os.name == "nt" else "fastls-check")
-    run(["go", "build", "-o", str(executable), "."], CORE / "tools/fastls-check", env)
-    result = subprocess.run([str(executable), "-root", str(CORE), "-plan", str(out / "plan.json"), "-output", str(out / "checks"), "-timeout", "5m", "-total-timeout", "45m"], cwd=CORE, env=env)
+    run(["go", "build", "-o", str(executable), "."], CORE / "tools/fastls-check", source_env)
+    result = subprocess.run([str(executable), "-root", str(CORE), "-plan", str(out / "plan.json"), "-output", str(out / "checks"), "-timeout", "5m", "-total-timeout", "45m"], cwd=CORE, env=source_env)
     print("acceptance evidence:", out)
     raise SystemExit(result.returncode)
 
