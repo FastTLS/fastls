@@ -228,9 +228,11 @@ func TestRequestLifecycleTimeout(t *testing.T) {
 		resp.Body.Close()
 	}
 	resp.Client.CloseIdleConnections()
+	elapsed := time.Since(started)
 	var timeout net.Error
-	if !errors.As(err, &timeout) || !timeout.Timeout() || time.Since(started) > 2500*time.Millisecond {
-		t.Fatalf("err=%v, elapsed=%v; want request timeout near 1s", err, time.Since(started))
+	timedOut := errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &timeout) && timeout.Timeout())
+	if !timedOut || elapsed < 750*time.Millisecond || elapsed > 2500*time.Millisecond {
+		t.Fatalf("err=%v, elapsed=%v; want request timeout near 1s", err, elapsed)
 	}
 }
 
