@@ -73,7 +73,16 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Context().Value(duplexKey{}) == true && protocol != ftransport.ProtocolHTTP2 {
 		return nil, errors.New("duplex requires HTTP/2; negotiated protocol is unsupported")
 	}
-	return transport.RoundTrip(req)
+	response, err := transport.RoundTrip(req)
+	if err != nil && req.Context().Err() != nil {
+		// net/http may keep a dial running after its initiating request is
+		// cancelled so another request can use the result. A session-level
+		// connect deadline must instead release a stalled proxy handshake.
+		if closer, ok := transport.(interface{ CloseIdleConnections() }); ok {
+			closer.CloseIdleConnections()
+		}
+	}
+	return response, err
 }
 
 func (rt *roundTripper) getTransport(req *http.Request, key string) (http.RoundTripper, ftransport.Protocol, error) {
