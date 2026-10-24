@@ -149,7 +149,11 @@ func environment() []string {
 			result = append(result, v)
 		}
 	}
-	return append(result, "GOWORK=off")
+	gowork := os.Getenv("FASTLS_CHECK_GOWORK")
+	if gowork == "" {
+		gowork = "off"
+	}
+	return append(result, "GOWORK="+gowork)
 }
 func metadata(ctx context.Context, dir string, args ...string) string {
 	c := exec.CommandContext(ctx, args[0], args[1:]...)

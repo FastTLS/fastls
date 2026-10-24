@@ -9,36 +9,36 @@ import (
 // TestHTTP2SettingsStringOverride 测试 HTTP2SettingsString 覆盖 HTTP2Settings 和 PHeaderOrderKeys
 func TestHTTP2SettingsStringOverride(t *testing.T) {
 	testCases := []struct {
-		name                string
-		http2SettingsString string
+		name                 string
+		http2SettingsString  string
 		initialHTTP2Settings *fastls.H2Settings
 		initialPHeaderOrder  []string
 		expectedPHeaderOrder []string
-		description         string
+		description          string
 	}{
 		{
-			name:                "基础格式（不包含PHeaderOrderKeys）",
-			http2SettingsString: "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p",
+			name:                 "基础格式（不包含PHeaderOrderKeys）",
+			http2SettingsString:  "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p",
 			initialHTTP2Settings: nil,
 			initialPHeaderOrder:  []string{":method", ":authority", ":scheme", ":path"},
-			expectedPHeaderOrder:  []string{":method", ":authority", ":scheme", ":path"}, // 应该保持原值
-			description:         "使用基础格式，不包含 PHeaderOrderKeys，应该保持原有的 PHeaderOrderKeys",
+			expectedPHeaderOrder: []string{":method", ":authority", ":scheme", ":path"}, // 应该保持原值
+			description:          "使用基础格式，不包含 PHeaderOrderKeys，应该保持原有的 PHeaderOrderKeys",
 		},
 		{
-			name:                "完整格式（包含PHeaderOrderKeys）",
-			http2SettingsString: "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p||:method,:authority,:scheme,:path",
+			name:                 "完整格式（包含PHeaderOrderKeys）",
+			http2SettingsString:  "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p||:method,:authority,:scheme,:path",
 			initialHTTP2Settings: nil,
 			initialPHeaderOrder:  []string{":method", ":path", ":authority", ":scheme"},
-			expectedPHeaderOrder:  []string{":method", ":authority", ":scheme", ":path"}, // 应该被覆盖
-			description:         "使用完整格式，包含 PHeaderOrderKeys，应该覆盖原有的 PHeaderOrderKeys",
+			expectedPHeaderOrder: []string{":method", ":authority", ":scheme", ":path"}, // 应该被覆盖
+			description:          "使用完整格式，包含 PHeaderOrderKeys，应该覆盖原有的 PHeaderOrderKeys",
 		},
 		{
-			name:                "Firefox格式（包含PHeaderOrderKeys）",
-			http2SettingsString: "1:65536;2:0;4:131072;5:16384|12517377|0|m,p,a,s||:method,:path,:authority,:scheme",
+			name:                 "Firefox格式（包含PHeaderOrderKeys）",
+			http2SettingsString:  "1:65536;2:0;4:131072;5:16384|12517377|0|m,p,a,s||:method,:path,:authority,:scheme",
 			initialHTTP2Settings: nil,
 			initialPHeaderOrder:  []string{":method", ":authority", ":scheme", ":path"},
-			expectedPHeaderOrder:  []string{":method", ":path", ":authority", ":scheme"}, // 应该被覆盖为 Firefox 的顺序
-			description:         "Firefox 格式，包含 PHeaderOrderKeys，应该覆盖为 Firefox 的顺序",
+			expectedPHeaderOrder: []string{":method", ":path", ":authority", ":scheme"}, // 应该被覆盖为 Firefox 的顺序
+			description:          "Firefox 格式，包含 PHeaderOrderKeys，应该覆盖为 Firefox 的顺序",
 		},
 	}
 
@@ -76,8 +76,8 @@ func TestHTTP2SettingsStringOverride(t *testing.T) {
 				t.Error("HTTP2Settings 应该被设置")
 			} else {
 				t.Logf("HTTP2Settings 已设置: Settings 数量=%d, ConnectionFlow=%d",
-					len(options.HTTP2Settings.Settings),
-					options.HTTP2Settings.ConnectionFlow)
+					len(options.HTTP2Settings.InitialSettings.Values),
+					options.HTTP2Settings.ConnectionWindowIncrement)
 			}
 
 			// 验证 PHeaderOrderKeys
@@ -104,39 +104,39 @@ func TestHTTP2SettingsStringOverride(t *testing.T) {
 // TestParseH2SettingsStringWithPHeaderOrder 测试解析函数
 func TestParseH2SettingsStringWithPHeaderOrder(t *testing.T) {
 	testCases := []struct {
-		name                string
-		input               string
-		expectPHeaderOrder  bool
+		name                 string
+		input                string
+		expectPHeaderOrder   bool
 		expectedPHeaderOrder []string
-		description         string
+		description          string
 	}{
 		{
-			name:                "不包含PHeaderOrderKeys",
-			input:               "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p",
-			expectPHeaderOrder:  false,
+			name:                 "不包含PHeaderOrderKeys",
+			input:                "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p",
+			expectPHeaderOrder:   false,
 			expectedPHeaderOrder: nil,
-			description:         "基础格式，不包含 PHeaderOrderKeys",
+			description:          "基础格式，不包含 PHeaderOrderKeys",
 		},
 		{
-			name:                "包含PHeaderOrderKeys",
-			input:               "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p||:method,:authority,:scheme,:path",
-			expectPHeaderOrder:  true,
+			name:                 "包含PHeaderOrderKeys",
+			input:                "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p||:method,:authority,:scheme,:path",
+			expectPHeaderOrder:   true,
 			expectedPHeaderOrder: []string{":method", ":authority", ":scheme", ":path"},
-			description:         "完整格式，包含 PHeaderOrderKeys",
+			description:          "完整格式，包含 PHeaderOrderKeys",
 		},
 		{
-			name:                "Firefox格式",
-			input:               "1:65536;2:0;4:131072;5:16384|12517377|0|m,p,a,s||:method,:path,:authority,:scheme",
-			expectPHeaderOrder:  true,
+			name:                 "Firefox格式",
+			input:                "1:65536;2:0;4:131072;5:16384|12517377|0|m,p,a,s||:method,:path,:authority,:scheme",
+			expectPHeaderOrder:   true,
 			expectedPHeaderOrder: []string{":method", ":path", ":authority", ":scheme"},
-			description:         "Firefox 格式，包含 PHeaderOrderKeys",
+			description:          "Firefox 格式，包含 PHeaderOrderKeys",
 		},
 		{
-			name:                "空PHeaderOrderKeys",
-			input:               "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p||",
-			expectPHeaderOrder:  false,
+			name:                 "空PHeaderOrderKeys",
+			input:                "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p||",
+			expectPHeaderOrder:   false,
 			expectedPHeaderOrder: nil,
-			description:         "包含 || 但 PHeaderOrderKeys 为空",
+			description:          "包含 || 但 PHeaderOrderKeys 为空",
 		},
 	}
 
@@ -181,4 +181,3 @@ func TestParseH2SettingsStringWithPHeaderOrder(t *testing.T) {
 		})
 	}
 }
-

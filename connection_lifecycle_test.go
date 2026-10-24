@@ -8,11 +8,9 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	fhttp "github.com/FastTLS/fhttp"
 )
 
-func fingerprintTestClient(t *testing.T, handler http.Handler, h2 bool) (*fhttp.Client, *httptest.Server) {
+func fingerprintTestClient(t *testing.T, handler http.Handler, h2 bool) (*http.Client, *httptest.Server) {
 	t.Helper()
 	s := httptest.NewUnstartedServer(handler)
 	s.EnableHTTP2 = h2
@@ -20,12 +18,12 @@ func fingerprintTestClient(t *testing.T, handler http.Handler, h2 bool) (*fhttp.
 	t.Cleanup(s.Close)
 	// ALPN advertises H2 and HTTP/1.1; the server controls the selected protocol.
 	rt := newRoundTripper(browser{Fingerprint: Ja3Fingerprint{FingerprintValue: "771,4865-4866-4867,0-10-13-16-43-45-51,29-23-24,"}})
-	c := &fhttp.Client{Transport: rt, Timeout: 3 * time.Second}
+	c := &http.Client{Transport: rt, Timeout: 3 * time.Second}
 	t.Cleanup(c.CloseIdleConnections)
 	return c, s
 }
 
-func readFingerprintResponse(c *fhttp.Client, url string) error {
+func readFingerprintResponse(c *http.Client, url string) error {
 	r, err := c.Get(url)
 	if err != nil {
 		return err
@@ -110,6 +108,47 @@ func TestFingerprintConnectionCloseIdlePreservesActiveBody(t *testing.T) {
 				t.Fatalf("active body=%q, err=%v", body, err)
 			}
 		})
+	}
+}
+
+func TestFingerprintHTTP2CloseIdleReusesConnectionWithActiveStream(t *testing.T) {
+	release := make(chan struct{})
+	c, s := fingerprintTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Test-Connection", r.RemoteAddr)
+		if r.URL.Path == "/hold" {
+			fmt.Fprint(w, "first")
+			w.(http.Flusher).Flush()
+			select {
+			case <-release:
+				fmt.Fprint(w, "last")
+			case <-r.Context().Done():
+			}
+			return
+		}
+		fmt.Fprint(w, "ok")
+	}), true)
+	active, err := c.Get(s.URL + "/hold")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer active.Body.Close()
+	warm := active.Header.Get("X-Test-Connection")
+	if warm == "" {
+		t.Fatal("active response did not identify its connection")
+	}
+
+	c.CloseIdleConnections()
+	next, err := c.Get(s.URL + "/next")
+	if err != nil {
+		t.Fatal(err)
+	}
+	next.Body.Close()
+	if got := next.Header.Get("X-Test-Connection"); got != warm {
+		t.Fatalf("active HTTP/2 connection was detached by CloseIdleConnections: got %q, want %q", got, warm)
+	}
+	close(release)
+	if body, err := io.ReadAll(active.Body); err != nil || string(body) != "firstlast" {
+		t.Fatalf("active body=%q, err=%v", body, err)
 	}
 }
 

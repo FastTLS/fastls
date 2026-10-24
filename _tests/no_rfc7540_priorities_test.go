@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	fastls "github.com/FastTLS/fastls"
-	http2 "github.com/FastTLS/fhttp/http2"
+	"github.com/FastTLS/ftransport"
 )
 
 // TestNO_RFC7540_PRIORITIES 测试 NO_RFC7540_PRIORITIES (设置 ID 9) 是否正确转换
@@ -42,11 +42,11 @@ func TestNO_RFC7540_PRIORITIES(t *testing.T) {
 
 	// 验证 NO_RFC7540_PRIORITIES 是否正确转换为 http2.SettingID(9)
 	foundSetting := false
-	for _, setting := range http2Settings.Settings {
-		if setting.ID == http2.SettingID(9) {
+	for _, setting := range http2Settings.InitialSettings.Values {
+		if setting.ID == ftransport.SettingNoRFC7540Priorities {
 			foundSetting = true
-			if setting.Val != 1 {
-				t.Errorf("NO_RFC7540_PRIORITIES 的值应该是 1，实际是 %d", setting.Val)
+			if setting.Value != 1 {
+				t.Errorf("NO_RFC7540_PRIORITIES 的值应该是 1，实际是 %d", setting.Value)
 			}
 			break
 		}
@@ -57,9 +57,9 @@ func TestNO_RFC7540_PRIORITIES(t *testing.T) {
 
 	t.Logf("✅ NO_RFC7540_PRIORITIES 测试通过")
 	t.Logf("  - Settings 中的值: %d", h2Settings.Settings["NO_RFC7540_PRIORITIES"])
-	for _, setting := range http2Settings.Settings {
-		if setting.ID == http2.SettingID(9) {
-			t.Logf("  - http2.Setting ID: %d, Val: %d", setting.ID, setting.Val)
+	for _, setting := range http2Settings.InitialSettings.Values {
+		if setting.ID == ftransport.SettingNoRFC7540Priorities {
+			t.Logf("  - HTTP2Setting ID: %d, Value: %d", setting.ID, setting.Value)
 			break
 		}
 	}

@@ -125,7 +125,7 @@ def main():
         manifest[key] = text
         manifest[key + "_exit_code"] = code
     manifest["source_sha256"] = {}
-    for module in (CORE, CORE / "profile", CORE.parent / "fhttp"):
+    for module in (CORE, CORE / "profile", CORE.parent / "ftransport"):
         for p in sorted(module.rglob("*.go")):
             if any(x in p.relative_to(module).parts for x in (".git", "reports")):
                 continue

@@ -7,7 +7,7 @@ import (
 
 	"github.com/FastTLS/fastls/internal/compiler"
 	"github.com/FastTLS/fastls/profile"
-	"github.com/FastTLS/fhttp/http2"
+	"github.com/FastTLS/ftransport"
 )
 
 // ValidateProfile checks semantic and backend support without opening a connection.
@@ -75,20 +75,23 @@ func ApplyProfile(o *Options, s profile.Spec) error {
 	return nil
 }
 
-func ProfileHTTP2(h profile.HTTP2Config) *http2.HTTP2Settings {
-	r := &http2.HTTP2Settings{Explicit: true, ConnectionFlow: int(h.ConnectionFlow), Settings: make([]http2.Setting, 0, len(h.Settings))}
-	for _, s := range h.Settings {
-		r.Settings = append(r.Settings, http2.Setting{ID: http2.SettingID(s.ID), Val: s.Value})
+func ProfileHTTP2(h profile.HTTP2Config) *ftransport.HTTP2Config {
+	r := &ftransport.HTTP2Config{
+		InitialSettings:           ftransport.ExplicitHTTP2Settings(),
+		ConnectionWindowIncrement: h.ConnectionFlow,
 	}
-	priority := func(p profile.Priority) http2.PriorityParam {
-		return http2.PriorityParam{StreamDep: p.Dependency, Weight: uint8(p.Weight - 1), Exclusive: p.Exclusive}
+	for _, s := range h.Settings {
+		r.InitialSettings.Values = append(r.InitialSettings.Values, ftransport.HTTP2Setting{ID: ftransport.HTTP2SettingID(s.ID), Value: s.Value})
+	}
+	priority := func(p profile.Priority) ftransport.HTTP2PriorityParam {
+		return ftransport.HTTP2PriorityParam{Dependency: p.Dependency, Weight: p.Weight, Exclusive: p.Exclusive}
 	}
 	if h.HeaderPriority != nil {
 		v := priority(*h.HeaderPriority)
 		r.HeaderPriority = &v
 	}
 	for _, p := range h.PriorityFrames {
-		r.PriorityFrames = append(r.PriorityFrames, http2.PriorityFrame{FrameHeader: http2.FrameHeader{StreamID: p.StreamID}, PriorityParam: priority(p)})
+		r.PriorityFrames = append(r.PriorityFrames, ftransport.HTTP2PriorityFrame{StreamID: p.StreamID, HTTP2PriorityParam: priority(p)})
 	}
 	return r
 }

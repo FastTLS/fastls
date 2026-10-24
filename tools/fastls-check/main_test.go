@@ -69,6 +69,27 @@ func TestExecuteFailuresAndDeadline(t *testing.T) {
 	}
 }
 
+func TestEnvironmentWorkspacePolicy(t *testing.T) {
+	t.Setenv("GOWORK", "inherited.work")
+	t.Setenv("FASTLS_CHECK_GOWORK", "")
+	if got := environment(); !containsEnvironment(got, "GOWORK=off") || containsEnvironment(got, "GOWORK=inherited.work") {
+		t.Fatalf("default environment did not isolate the workspace: %v", got)
+	}
+	t.Setenv("FASTLS_CHECK_GOWORK", "candidate.work")
+	if got := environment(); !containsEnvironment(got, "GOWORK=candidate.work") || containsEnvironment(got, "GOWORK=inherited.work") {
+		t.Fatalf("explicit source workspace was not propagated: %v", got)
+	}
+}
+
+func containsEnvironment(env []string, want string) bool {
+	for _, value := range env {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestPlanValidationAndExitPriority(t *testing.T) {
 	for _, p := range []Plan{
 		{SchemaVersion: 1},

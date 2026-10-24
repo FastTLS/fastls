@@ -5,16 +5,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FastTLS/fhttp/http2"
+	"github.com/FastTLS/ftransport"
 )
 
-var settings = map[string]http2.SettingID{
-	"HEADER_TABLE_SIZE":      http2.SettingHeaderTableSize,
-	"ENABLE_PUSH":            http2.SettingEnablePush,
-	"MAX_CONCURRENT_STREAMS": http2.SettingMaxConcurrentStreams,
-	"INITIAL_WINDOW_SIZE":    http2.SettingInitialWindowSize,
-	"MAX_FRAME_SIZE":         http2.SettingMaxFrameSize,
-	"MAX_HEADER_LIST_SIZE":   http2.SettingMaxHeaderListSize,
+var settings = map[string]ftransport.HTTP2SettingID{
+	"HEADER_TABLE_SIZE":      ftransport.SettingHeaderTableSize,
+	"ENABLE_PUSH":            ftransport.SettingEnablePush,
+	"MAX_CONCURRENT_STREAMS": ftransport.SettingMaxConcurrentStreams,
+	"INITIAL_WINDOW_SIZE":    ftransport.SettingInitialWindowSize,
+	"MAX_FRAME_SIZE":         ftransport.SettingMaxFrameSize,
+	"MAX_HEADER_LIST_SIZE":   ftransport.SettingMaxHeaderListSize,
 }
 
 // settingIDToName 将 SETTINGS ID 映射到名称
@@ -67,151 +67,78 @@ type H2Settings struct {
 	PriorityFrames []map[string]interface{} `json:"PriorityFrames"`
 }
 
-func ToHTTP2Settings(h2Settings *H2Settings) (http2Settings *http2.HTTP2Settings) {
-	http2Settings = &http2.HTTP2Settings{
-		Settings:       nil,
-		ConnectionFlow: 0,
-		HeaderPriority: &http2.PriorityParam{},
-		PriorityFrames: nil,
+func ToHTTP2Settings(h2Settings *H2Settings) *ftransport.HTTP2Config {
+	result := &ftransport.HTTP2Config{}
+	if h2Settings == nil {
+		return result
 	}
-	if h2Settings.Settings != nil {
-		if h2Settings.SettingsOrder != nil {
-			for _, orderKey := range h2Settings.SettingsOrder {
-				val := h2Settings.Settings[orderKey]
-				if val != 0 || orderKey == "ENABLE_PUSH" {
-					var settingID http2.SettingID
-					if id, ok := settings[orderKey]; ok {
-						settingID = id
-					} else if orderKey == "NO_RFC7540_PRIORITIES" {
-						// Safari 使用的扩展设置 ID 9
-						settingID = http2.SettingID(9)
-					} else if strings.HasPrefix(orderKey, "UNKNOWN_SETTING_") {
-						// 处理未知设置：从名称中提取 ID
-						idStr := strings.TrimPrefix(orderKey, "UNKNOWN_SETTING_")
-						if settingIDInt, err := strconv.Atoi(idStr); err == nil {
-							settingID = http2.SettingID(settingIDInt)
-						} else {
-							continue // 跳过无效的设置
-						}
-					} else {
-						continue // 跳过无效的设置
-					}
-					http2Settings.Settings = append(http2Settings.Settings, http2.Setting{
-						ID:  settingID,
-						Val: uint32(val),
-					})
-				}
-			}
-		} else {
-			for id, val := range h2Settings.Settings {
-				var settingID http2.SettingID
-				if sid, ok := settings[id]; ok {
-					settingID = sid
-				} else if id == "NO_RFC7540_PRIORITIES" {
-					// Safari 使用的扩展设置 ID 9
-					settingID = http2.SettingID(9)
-				} else if strings.HasPrefix(id, "UNKNOWN_SETTING_") {
-					// 处理未知设置：从名称中提取 ID
-					idStr := strings.TrimPrefix(id, "UNKNOWN_SETTING_")
-					if settingIDInt, err := strconv.Atoi(idStr); err == nil {
-						settingID = http2.SettingID(settingIDInt)
-					} else {
-						continue // 跳过无效的设置
-					}
-				} else {
-					continue // 跳过无效的设置
-				}
-				http2Settings.Settings = append(http2Settings.Settings, http2.Setting{
-					ID:  settingID,
-					Val: uint32(val),
-				})
-			}
+	result.InitialSettings.Present = true
+	settingID := func(name string) (ftransport.HTTP2SettingID, bool) {
+		if id, ok := settings[name]; ok {
+			return id, true
+		}
+		if name == "NO_RFC7540_PRIORITIES" {
+			return ftransport.SettingNoRFC7540Priorities, true
+		}
+		if strings.HasPrefix(name, "UNKNOWN_SETTING_") {
+			value, err := strconv.ParseUint(strings.TrimPrefix(name, "UNKNOWN_SETTING_"), 10, 16)
+			return ftransport.HTTP2SettingID(value), err == nil && value != 0
+		}
+		return 0, false
+	}
+	appendSetting := func(name string) {
+		value, exists := h2Settings.Settings[name]
+		if !exists {
+			return
+		}
+		id, ok := settingID(name)
+		if ok {
+			result.InitialSettings.Values = append(result.InitialSettings.Values, ftransport.HTTP2Setting{ID: id, Value: uint32(value)})
 		}
 	}
-	if h2Settings.ConnectionFlow != 0 {
-		http2Settings.ConnectionFlow = h2Settings.ConnectionFlow
+	if h2Settings.SettingsOrder != nil {
+		for _, name := range h2Settings.SettingsOrder {
+			appendSetting(name)
+		}
+	} else {
+		for name := range h2Settings.Settings {
+			appendSetting(name)
+		}
+	}
+	result.ConnectionWindowIncrement = uint32(h2Settings.ConnectionFlow)
+	number := func(value any, fallback int) int {
+		switch v := value.(type) {
+		case int:
+			return v
+		case float64:
+			return int(v)
+		default:
+			return fallback
+		}
+	}
+	priority := func(source map[string]interface{}) ftransport.HTTP2PriorityParam {
+		exclusive, _ := source["exclusive"].(bool)
+		return ftransport.HTTP2PriorityParam{
+			Dependency: uint32(number(source["streamDep"], 0)),
+			Weight:     uint16(number(source["weight"], 1)),
+			Exclusive:  exclusive,
+		}
 	}
 	if h2Settings.HeaderPriority != nil {
-		var weight int
-		var streamDep int
-		w := h2Settings.HeaderPriority["weight"]
-		switch w.(type) {
-		case int:
-			weight = w.(int)
-		case float64:
-			weight = int(w.(float64))
-		}
-		s := h2Settings.HeaderPriority["streamDep"]
-		switch s.(type) {
-		case int:
-			streamDep = s.(int)
-		case float64:
-			streamDep = int(s.(float64))
-		}
-		var priorityParam *http2.PriorityParam
-		if w == nil {
-			priorityParam = &http2.PriorityParam{
-				StreamDep: uint32(streamDep),
-				Exclusive: h2Settings.HeaderPriority["exclusive"].(bool),
-			}
-		} else {
-			priorityParam = &http2.PriorityParam{
-				StreamDep: uint32(streamDep),
-				Exclusive: h2Settings.HeaderPriority["exclusive"].(bool),
-				Weight:    uint8(weight - 1),
-			}
-		}
-		http2Settings.HeaderPriority = priorityParam
+		value := priority(h2Settings.HeaderPriority)
+		result.HeaderPriority = &value
 	}
-	if h2Settings.PriorityFrames != nil {
-		for _, frame := range h2Settings.PriorityFrames {
-			var weight int
-			var streamDep int
-			var streamID int
-			priorityParamSource := frame["priorityParam"].(map[string]interface{})
-			w := priorityParamSource["weight"]
-			switch w.(type) {
-			case int:
-				weight = w.(int)
-			case float64:
-				weight = int(w.(float64))
-			}
-			s := priorityParamSource["streamDep"]
-			switch s.(type) {
-			case int:
-				streamDep = s.(int)
-			case float64:
-				streamDep = int(s.(float64))
-			}
-			sid := frame["streamID"]
-			switch sid.(type) {
-			case int:
-				streamID = sid.(int)
-			case float64:
-				streamID = int(sid.(float64))
-			}
-			var priorityParam http2.PriorityParam
-			if w == nil {
-				priorityParam = http2.PriorityParam{
-					StreamDep: uint32(streamDep),
-					Exclusive: priorityParamSource["exclusive"].(bool),
-				}
-			} else {
-				priorityParam = http2.PriorityParam{
-					StreamDep: uint32(streamDep),
-					Exclusive: priorityParamSource["exclusive"].(bool),
-					Weight:    uint8(weight - 1),
-				}
-			}
-			http2Settings.PriorityFrames = append(http2Settings.PriorityFrames, http2.PriorityFrame{
-				FrameHeader: http2.FrameHeader{
-					StreamID: uint32(streamID),
-				},
-				PriorityParam: priorityParam,
-			})
+	for _, frame := range h2Settings.PriorityFrames {
+		source, ok := frame["priorityParam"].(map[string]interface{})
+		if !ok {
+			continue
 		}
+		result.PriorityFrames = append(result.PriorityFrames, ftransport.HTTP2PriorityFrame{
+			StreamID:           uint32(number(frame["streamID"], 0)),
+			HTTP2PriorityParam: priority(source),
+		})
 	}
-	return http2Settings
+	return result
 }
 
 // ParseH2SettingsString 解析 HTTP/2 设置字符串格式

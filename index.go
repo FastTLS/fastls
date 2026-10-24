@@ -10,33 +10,33 @@ import (
 	"io"
 	"log"
 	"maps"
+	"net/http"
 	"net/url"
 	"strings"
 
-	http "github.com/FastTLS/fhttp"
-	"github.com/FastTLS/fhttp/http2"
+	"github.com/FastTLS/ftransport"
 )
 
 // Options 设置 Fastls 客户端选项
 type Options struct {
 	reuseConnections     bool
 	lifetime             context.Context
-	FingerprintUserAgent string               `json:"-"` // Protocol parser identity; request headers never change it.
-	FingerprintProvider  profile.Provider     `json:"-"`
-	Profile              *profile.Spec        `json:"profile,omitempty"`
-	HeaderValues         map[string][]string  `json:"-"`
-	URL                  string               `json:"url"`
-	Method               string               `json:"method"`
-	Headers              map[string]string    `json:"headers"`
-	Body                 string               `json:"body"`
-	Fingerprint          Fingerprint          `json:"fingerprint"` // 指纹接口，支持 Ja3、Ja4 等
-	TLSExtensions        *TLSExtensions       `json:"-"`
-	HTTP2Settings        *http2.HTTP2Settings `json:"-"`
-	HTTP2SettingsString  string               `json:"http2SettingsString"` // HTTP/2 设置字符串，如果设置则覆盖 HTTP2Settings 和 PHeaderOrderKeys
-	PHeaderOrderKeys     []string             `json:"-"`
-	HeaderOrderKeys      []string             `json:"-"`
-	UserAgent            string               `json:"userAgent"`
-	Proxy                string               `json:"proxy"`
+	FingerprintUserAgent string                  `json:"-"` // Protocol parser identity; request headers never change it.
+	FingerprintProvider  profile.Provider        `json:"-"`
+	Profile              *profile.Spec           `json:"profile,omitempty"`
+	HeaderValues         map[string][]string     `json:"-"`
+	URL                  string                  `json:"url"`
+	Method               string                  `json:"method"`
+	Headers              map[string]string       `json:"headers"`
+	Body                 string                  `json:"body"`
+	Fingerprint          Fingerprint             `json:"fingerprint"` // 指纹接口，支持 Ja3、Ja4 等
+	TLSExtensions        *TLSExtensions          `json:"-"`
+	HTTP2Settings        *ftransport.HTTP2Config `json:"-"`
+	HTTP2SettingsString  string                  `json:"http2SettingsString"` // HTTP/2 设置字符串，如果设置则覆盖 HTTP2Settings 和 PHeaderOrderKeys
+	PHeaderOrderKeys     []string                `json:"-"`
+	HeaderOrderKeys      []string                `json:"-"`
+	UserAgent            string                  `json:"userAgent"`
+	Proxy                string                  `json:"proxy"`
 	// ProxyTLSRootCAs replaces system roots for HTTPS proxy TLS only.
 	ProxyTLSRootCAs *x509.CertPool `json:"-"`
 	Cookies         []Cookie       `json:"cookies"`
@@ -120,6 +120,9 @@ func processRequest(options *Options, shared ...http.Client) (*requestContext, e
 			options.PHeaderOrderKeys = pHeaderOrderKeys
 		}
 	}
+	if options.PHeaderOrderKeys == nil {
+		options.PHeaderOrderKeys = []string{":method", ":authority", ":scheme", ":path"}
+	}
 
 	var browser = browser{
 		KeepAlive:            options.reuseConnections,
@@ -134,6 +137,8 @@ func processRequest(options *Options, shared ...http.Client) (*requestContext, e
 		Cookies:              options.Cookies,
 		CookieJar:            options.CookieJar,
 		HTTP2Settings:        options.HTTP2Settings,
+		HeaderOrderKeys:      options.HeaderOrderKeys,
+		PHeaderOrderKeys:     options.PHeaderOrderKeys,
 	}
 
 	var client http.Client
@@ -158,15 +163,7 @@ func processRequest(options *Options, shared ...http.Client) (*requestContext, e
 		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}
 
-	// 排序伪头部和普通头部
-	if options.PHeaderOrderKeys == nil {
-		options.PHeaderOrderKeys = []string{":method", ":authority", ":scheme", ":path"}
-	}
-
-	req.Header = http.Header{
-		http.HeaderOrderKey:  options.HeaderOrderKeys,
-		http.PHeaderOrderKey: options.PHeaderOrderKeys,
-	}
+	req.Header = make(http.Header)
 	// 设置 Host 头部
 	u, err := url.Parse(options.URL)
 	if err != nil {

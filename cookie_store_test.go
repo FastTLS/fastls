@@ -3,14 +3,12 @@ package fastls
 import (
 	"context"
 	"io"
-	stdhttp "net/http"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"sync"
 	"testing"
-
-	http "github.com/FastTLS/fhttp"
 )
 
 func TestCookieStorePublicSuffixAndConcurrentClear(t *testing.T) {
@@ -53,11 +51,11 @@ func TestCookieStorePublicSuffixAndConcurrentClear(t *testing.T) {
 func TestSessionCookiesRedirectAndMultivalueHeaders(t *testing.T) {
 	for _, h2 := range []bool{false, true} {
 		t.Run(map[bool]string{false: "h1", true: "h2"}[h2], func(t *testing.T) {
-			server := httptest.NewUnstartedServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/start" {
 					w.Header().Add("Set-Cookie", "a=one; Path=/")
 					w.Header().Add("Set-Cookie", "b=two; Path=/")
-					stdhttp.Redirect(w, r, "/end", 302)
+					http.Redirect(w, r, "/end", 302)
 					return
 				}
 				w.Header().Add("X-Multi", "first, value")

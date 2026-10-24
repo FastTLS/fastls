@@ -1,18 +1,14 @@
 package fastls
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io"
 	"net"
+	"net/http"
 	"strings"
 	"sync"
 
-	stdhttp "net/http"
-
-	http "github.com/FastTLS/fhttp"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"golang.org/x/net/proxy"
@@ -25,6 +21,7 @@ type http3Transport struct {
 	UserAgent   string
 	Cookies     []Cookie
 	dialer      proxy.ContextDialer
+	transport   *http3.Transport
 
 	// QUIC 连接缓存
 	cachedQuicConnections map[string]*quic.Conn
@@ -32,22 +29,7 @@ type http3Transport struct {
 
 // RoundTrip 实现 http.RoundTripper 接口
 func (t *http3Transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// 将 fhttp.Request 转换为标准库的 http.Request
-	stdReq, err := stdhttp.NewRequestWithContext(req.Context(), req.Method, req.URL.String(), req.Body)
-	if err != nil {
-		return nil, fmt.Errorf("创建标准库请求失败: %w", err)
-	}
-
-	// 复制请求头
-	for key, values := range req.Header {
-		for _, value := range values {
-			// 跳过 fhttp 特定的头
-			if key == http.HeaderOrderKey || key == http.PHeaderOrderKey {
-				continue
-			}
-			stdReq.Header.Add(key, value)
-		}
-	}
+	stdReq := req.Clone(req.Context())
 
 	// 设置 User-Agent
 	if t.UserAgent != "" {
@@ -56,7 +38,7 @@ func (t *http3Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	// 添加 Cookies
 	for _, cookie := range t.Cookies {
-		stdReq.AddCookie(&stdhttp.Cookie{
+		stdReq.AddCookie(&http.Cookie{
 			Name:       cookie.Name,
 			Value:      cookie.Value,
 			Path:       cookie.Path,
@@ -71,15 +53,16 @@ func (t *http3Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		})
 	}
 
-	// 创建 HTTP/3 Transport
-	// Transport 会通过 Dial 函数自动建立连接
-	transport := &http3.Transport{
-		Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
-			// 建立 QUIC 连接（使用 DialEarly 支持 0-RTT）
-			return t.dialQUICEarly(ctx, addr, tlsCfg, cfg)
-		},
+	t.Lock()
+	if t.transport == nil {
+		t.transport = &http3.Transport{
+			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
+				return t.dialQUICEarly(ctx, addr, tlsCfg, cfg)
+			},
+		}
 	}
-	defer transport.Close()
+	transport := t.transport
+	t.Unlock()
 
 	// 发送请求
 	stdResp, err := transport.RoundTrip(stdReq)
@@ -87,33 +70,17 @@ func (t *http3Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("HTTP/3 请求失败: %w", err)
 	}
 
-	// 将标准库的 Response 转换为 fhttp.Response
-	bodyBytes, err := io.ReadAll(stdResp.Body)
-	stdResp.Body.Close()
-	if err != nil {
-		return nil, fmt.Errorf("读取响应体失败: %w", err)
-	}
+	stdResp.Request = req
+	return stdResp, nil
+}
 
-	// 创建 fhttp.Response
-	fhttpResp := &http.Response{
-		Status:     stdResp.Status,
-		StatusCode: stdResp.StatusCode,
-		Proto:      stdResp.Proto,
-		ProtoMajor: stdResp.ProtoMajor,
-		ProtoMinor: stdResp.ProtoMinor,
-		Header:     http.Header{},
-		Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
-		Request:    req,
+func (t *http3Transport) CloseIdleConnections() {
+	t.Lock()
+	transport := t.transport
+	t.Unlock()
+	if transport != nil {
+		transport.CloseIdleConnections()
 	}
-
-	// 复制响应头
-	for key, values := range stdResp.Header {
-		for _, value := range values {
-			fhttpResp.Header.Add(key, value)
-		}
-	}
-
-	return fhttpResp, nil
 }
 
 // dialQUIC 建立 QUIC 连接

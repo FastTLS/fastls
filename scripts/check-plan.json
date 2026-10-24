@@ -321,12 +321,8 @@
       "reason": "explicit network suite: python scripts/check-peet.py; FASTLS_PEET_NETWORK=1 required"
     },
     {
-      "path": "../fhttp",
-      "reason": "H01 selects affected upstream cases; root may include external integration tests"
-    },
-    {
-      "path": "../fhttp/http2/h2demo",
-      "reason": "independent legacy demo module with pre-existing dependency changes; inventory in A01"
+      "path": "../ftransport/third_party/xnet",
+      "reason": "audited provenance snapshot is a nested module; production code is verified through internal/xnet"
     },
     {
       "path": "../utls;../quic-go",
