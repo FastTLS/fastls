@@ -37,10 +37,12 @@ type Options struct {
 	HeaderOrderKeys      []string             `json:"-"`
 	UserAgent            string               `json:"userAgent"`
 	Proxy                string               `json:"proxy"`
-	Cookies              []Cookie             `json:"cookies"`
-	CookieJar            http.CookieJar       `json:"-"`
-	Timeout              int                  `json:"timeout"`
-	DisableRedirect      bool                 `json:"disableRedirect"`
+	// ProxyTLSRootCAs replaces system roots for HTTPS proxy TLS only.
+	ProxyTLSRootCAs *x509.CertPool `json:"-"`
+	Cookies         []Cookie       `json:"cookies"`
+	CookieJar       http.CookieJar `json:"-"`
+	Timeout         int            `json:"timeout"`
+	DisableRedirect bool           `json:"disableRedirect"`
 	// VerifyTLS enables certificate verification for fingerprinted TCP TLS requests.
 	// The zero value preserves historical behavior; new integrations should set true.
 	VerifyTLS bool `json:"verifyTLS"`
@@ -124,6 +126,7 @@ func processRequest(options *Options, shared ...http.Client) (*requestContext, e
 		Lifetime:             options.lifetime,
 		VerifyTLS:            options.VerifyTLS,
 		TLSRootCAs:           options.TLSRootCAs,
+		ProxyTLSRootCAs:      options.ProxyTLSRootCAs,
 		Fingerprint:          options.Fingerprint,
 		Profile:              options.Profile,
 		UserAgent:            options.UserAgent,

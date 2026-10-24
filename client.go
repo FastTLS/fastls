@@ -19,6 +19,7 @@ type browser struct {
 	Lifetime             context.Context
 	VerifyTLS            bool
 	TLSRootCAs           *x509.CertPool
+	ProxyTLSRootCAs      *x509.CertPool
 	Profile              *profile.Spec
 	FingerprintUserAgent string
 	Fingerprint          Fingerprint
@@ -58,11 +59,11 @@ func newClient(browser browser, timeout int, disableRedirect bool, UserAgent str
 		parsed, parseErr := url.Parse(proxyURL[0])
 		if parseErr != nil {
 			err = errors.New("invalid proxy URL")
-		} else if parsed.Scheme == "http" || parsed.Scheme == "socks5" || parsed.Scheme == "socks5h" {
+		} else if parsed.Scheme == "http" || parsed.Scheme == "https" || parsed.Scheme == "socks5" || parsed.Scheme == "socks5h" {
 			endpoint, validationErr := parseTunnelProxy(proxyURL[0])
 			err = validationErr
 			if err == nil {
-				dialer = &tunnelProxyDialer{endpoint: endpoint}
+				dialer = &tunnelProxyDialer{endpoint: endpoint, roots: browser.ProxyTLSRootCAs}
 			}
 		} else {
 			dialer, err = newConnectDialer(proxyURL[0], UserAgent)

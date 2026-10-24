@@ -53,6 +53,9 @@ func NewSession(options Options) (*Session, error) {
 	if options.TLSRootCAs != nil {
 		options.TLSRootCAs = options.TLSRootCAs.Clone()
 	}
+	if options.ProxyTLSRootCAs != nil {
+		options.ProxyTLSRootCAs = options.ProxyTLSRootCAs.Clone()
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	options.reuseConnections, options.lifetime = true, ctx
 	// Prepare and validate the fixed profile once, without making a network request.

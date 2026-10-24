@@ -3,6 +3,8 @@ package fastls
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -34,12 +36,16 @@ func parseTunnelProxy(raw string) (*url.URL, error) {
 		if port == "" {
 			port = "80"
 		}
+	case "https":
+		if port == "" {
+			port = "443"
+		}
 	case "socks5", "socks5h":
 		if port == "" {
 			port = "1080"
 		}
 	default:
-		return nil, errors.New("proxy scheme must be http, socks5 or socks5h")
+		return nil, errors.New("proxy scheme must be http, https, socks5 or socks5h")
 	}
 	n, err := strconv.Atoi(port)
 	if err != nil || n < 1 || n > 65535 || strings.HasSuffix(u.Host, ":") {
@@ -48,7 +54,8 @@ func parseTunnelProxy(raw string) (*url.URL, error) {
 	if u.User != nil {
 		user := u.User.Username()
 		password, _ := u.User.Password()
-		if user == "" || (u.Scheme == "http" && strings.Contains(user, ":")) || (u.Scheme != "http" && (len(user) > 255 || len(password) > 255)) {
+		httpProxy := u.Scheme == "http" || u.Scheme == "https"
+		if user == "" || (httpProxy && strings.Contains(user, ":")) || (!httpProxy && (len(user) > 255 || len(password) > 255)) {
 			return nil, errors.New("invalid proxy credentials")
 		}
 	}
@@ -57,7 +64,10 @@ func parseTunnelProxy(raw string) (*url.URL, error) {
 	return u, nil
 }
 
-type tunnelProxyDialer struct{ endpoint *url.URL }
+type tunnelProxyDialer struct {
+	endpoint *url.URL
+	roots    *x509.CertPool
+}
 
 func (d *tunnelProxyDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	if network != "tcp" && network != "tcp4" && network != "tcp6" {
@@ -68,19 +78,29 @@ func (d *tunnelProxyDialer) DialContext(ctx context.Context, network, address st
 		return nil, err
 	}
 	// Cancel the whole handshake, including blocked writes and response reads.
-	stop := context.AfterFunc(ctx, func() { c.Close() })
+	raw := c
+	stop := context.AfterFunc(ctx, func() { raw.Close() })
+	if d.endpoint.Scheme == "https" {
+		secure := tls.Client(raw, &tls.Config{ServerName: d.endpoint.Hostname(), RootCAs: d.roots, MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}})
+		err = secure.HandshakeContext(ctx)
+		if err == nil {
+			c = secure
+		}
+	}
 	var result net.Conn = c
-	if d.endpoint.Scheme == "http" {
-		result, err = d.connect(c, address)
-	} else {
-		err = d.socks(ctx, c, address)
+	if err == nil {
+		if d.endpoint.Scheme == "http" || d.endpoint.Scheme == "https" {
+			result, err = d.connect(c, address)
+		} else {
+			err = d.socks(ctx, c, address)
+		}
 	}
 	stopped := stop()
 	if ctx.Err() != nil {
 		err = ctx.Err()
 	}
 	if err != nil || !stopped {
-		c.Close()
+		raw.Close()
 		if err == nil {
 			err = context.Canceled
 		}

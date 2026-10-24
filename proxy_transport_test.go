@@ -3,11 +3,13 @@ package fastls
 import (
 	"bufio"
 	"context"
+	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -83,6 +85,44 @@ func TestProxyConnectBoundsHeaders(t *testing.T) {
 	}
 }
 
+func TestHTTPSProxyUsesVerifiedTLSAndHTTP1(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "CONNECT" || r.TLS == nil || r.ProtoMajor != 1 {
+			t.Error("expected TLS HTTP1 CONNECT")
+		}
+		c, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer c.Close()
+		io.WriteString(c, "HTTP/1.1 200 OK\r\n\r\nfirst")
+	}))
+	defer server.Close()
+	endpoint, err := parseTunnelProxy(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots := x509.NewCertPool()
+	roots.AddCert(server.Certificate())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	c, err := (&tunnelProxyDialer{endpoint: endpoint, roots: roots}).DialContext(ctx, "tcp", "localhost:443")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := make([]byte, 5)
+	_, err = io.ReadFull(c, b)
+	c.Close()
+	if err != nil || string(b) != "first" {
+		t.Fatal("lost TLS tunnel bytes", err)
+	}
+	if c, err = (&tunnelProxyDialer{endpoint: endpoint}).DialContext(ctx, "tcp", "localhost:443"); err == nil {
+		c.Close()
+		t.Fatal("accepted untrusted proxy certificate")
+	}
+}
+
 func TestProxyHandshakeContextClosesSocket(t *testing.T) {
 	for _, scheme := range []string{"http", "socks5", "socks5h"} {
 		t.Run(scheme, func(t *testing.T) {
@@ -107,13 +147,13 @@ func TestProxyHandshakeContextClosesSocket(t *testing.T) {
 }
 
 func TestProxyValidationRedactsCredentials(t *testing.T) {
-	for _, raw := range []string{"http://name:secret@host:0", "http://name:secret@host/path", "http://name:secret@host?x=1", "socks4://name:secret@host", "https://name:secret@host", "http://name:sec%ZZret@host"} {
+	for _, raw := range []string{"http://name:secret@host:0", "http://name:secret@host/path", "http://name:secret@host?x=1", "socks4://name:secret@host", "http://name:sec%ZZret@host"} {
 		err := ValidateProxy(raw)
 		if err == nil || strings.Contains(err.Error(), "secret") || strings.Contains(err.Error(), "name") {
 			t.Fatalf("unsafe proxy validation error: %v", err)
 		}
 	}
-	for _, raw := range []string{"", "http://localhost", "socks5://localhost", "socks5h://[::1]:1080"} {
+	for _, raw := range []string{"", "http://localhost", "https://localhost", "socks5://localhost", "socks5h://[::1]:1080"} {
 		if err := ValidateProxy(raw); err != nil {
 			t.Fatal(err)
 		}
