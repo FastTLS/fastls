@@ -123,7 +123,7 @@ func DialWebSocketContext(ctx context.Context, endpoint string, options Options,
 	if bounded != nil {
 		bounded.limited.Store(false)
 	}
-	if err == nil && ((c.Subprotocol() != "" && !slices.Contains(protocols, c.Subprotocol())) || resp.Header.Get("Sec-WebSocket-Extensions") != "") {
+	if err == nil && (len(resp.Header.Values("Sec-WebSocket-Accept")) != 1 || len(resp.Header.Values("Sec-WebSocket-Protocol")) > 1 || (c.Subprotocol() != "" && !slices.Contains(protocols, c.Subprotocol())) || len(resp.Header.Values("Sec-WebSocket-Extensions")) != 0) {
 		c.Close()
 		return nil, resp, errors.New("WebSocket server selected an unoffered subprotocol or extension")
 	}

@@ -2,8 +2,12 @@ package fastls
 
 import (
 	"context"
+	"crypto/sha1"
 	"crypto/x509"
+	"encoding/base64"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -65,5 +69,34 @@ func TestWebSocketHandshakeContextCancellation(t *testing.T) {
 	_, _, err := DialWebSocketContext(ctx, strings.Replace(server.URL, "http", "ws", 1), opts, nil)
 	if err == nil || !errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		t.Fatal("handshake did not honor context", err)
+	}
+}
+
+func TestWebSocketRejectsDuplicateNegotiationHeaders(t *testing.T) {
+	for _, extra := range []string{
+		"Sec-WebSocket-Extensions: \r\nSec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n",
+		"Sec-WebSocket-Protocol: chat\r\nSec-WebSocket-Protocol: unoffered\r\n",
+		"Sec-WebSocket-Accept: invalid-second-value\r\n",
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, rw, err := w.(http.Hijacker).Hijack()
+			if err != nil {
+				return
+			}
+			defer c.Close()
+			digest := sha1.Sum([]byte(r.Header.Get("Sec-WebSocket-Key") + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
+			fmt.Fprintf(rw, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n%s\r\n", base64.StdEncoding.EncodeToString(digest[:]), extra)
+			rw.Flush()
+			io.Copy(io.Discard, c)
+		}))
+		opts := Options{Fingerprint: Ja3Fingerprint{FingerprintValue: "771,4865-4866-4867,0-10-13-16-43-45-51,29-23-24,"}}
+		c, _, err := DialWebSocketContext(context.Background(), strings.Replace(srv.URL, "http", "ws", 1), opts, []string{"chat"})
+		if c != nil {
+			c.Close()
+		}
+		srv.Close()
+		if err == nil {
+			t.Error("accepted duplicate negotiation headers", extra)
+		}
 	}
 }
