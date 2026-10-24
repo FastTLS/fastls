@@ -6,7 +6,7 @@ toolchain go1.26.10
 
 require (
 	github.com/FastTLS/fastls/profile v0.1.0-dev.20261023.8
-	github.com/FastTLS/ftransport v0.0.0-20261024114754-46a3d8677055
+	github.com/FastTLS/ftransport v0.0.0-20261024124311-72f0fe69e21f
 	github.com/andybalholm/brotli v1.2.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/klauspost/compress v1.18.1

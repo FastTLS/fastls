@@ -1,3 +1,5 @@
+github.com/FastTLS/ftransport v0.0.0-20261024124311-72f0fe69e21f h1:A4yHLT5xUiz4/tcgJtne2xy0WMx2TjpVq8a6NBn+ww0=
+github.com/FastTLS/ftransport v0.0.0-20261024124311-72f0fe69e21f/go.mod h1:uGIjCVD1YNocw7kmsbr3rBXXymBjEzEqlWK984x6aJo=
 github.com/andybalholm/brotli v1.2.0 h1:ukwgCxwYrmACq68yiUqwIWnGY0cTPox/M94sVwToPjQ=
 github.com/andybalholm/brotli v1.2.0/go.mod h1:rzTDkvFWvIrjDXZHkuS16NPggd91W3kUSvPlQ1pLaKY=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
