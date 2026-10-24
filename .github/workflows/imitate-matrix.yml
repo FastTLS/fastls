@@ -11,7 +11,7 @@ on:
       ftransport_ref:
         description: Reviewed FastTLS/ftransport ref
         required: true
-        default: 72f0fe69e21f5437e4c4d8c78156a780218c6370
+        default: a1916e4d252300d33ba1be4903d79b84168cd2c2
       lab_ref:
         description: Reviewed FastTLS/fastls-lab ref
         required: true

@@ -9,7 +9,7 @@ require (
 )
 
 require (
-	github.com/FastTLS/ftransport v0.0.0-20261024124311-72f0fe69e21f // indirect
+	github.com/FastTLS/ftransport v0.0.0-20261024124928-a1916e4d2523 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.18.1 // indirect

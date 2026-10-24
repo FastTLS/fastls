@@ -20,7 +20,7 @@ import xml.etree.ElementTree as ET
 CORE = Path(__file__).resolve().parents[1]
 ROOT = CORE.parent
 VERSION = "v0.1.0-dev.20261023.8"
-FTRANSPORT_VERSION = "v0.0.0-20261024124311-72f0fe69e21f"
+FTRANSPORT_VERSION = "v0.0.0-20261024124928-a1916e4d2523"
 MODULES = {"fastls/profile": "github.com/FastTLS/fastls/profile", "ftransport": "github.com/FastTLS/ftransport", "fastls": "github.com/FastTLS/fastls", "imitate": "github.com/FastTLS/imitate"}
 VERSIONS = {module: FTRANSPORT_VERSION if relative == "ftransport" else VERSION for relative, module in MODULES.items()}
 ACTIVE_OUT = None
