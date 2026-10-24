@@ -3,11 +3,10 @@ package fastls
 import (
 	"context"
 	"io"
+	"net/http"
+	"net/http/httptrace"
 	"sync"
 	"time"
-
-	http "github.com/FastTLS/fhttp"
-	"github.com/FastTLS/fhttp/httptrace"
 )
 
 // Timeouts applies per redirect hop; zero disables the corresponding phase limit.

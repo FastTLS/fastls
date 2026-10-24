@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	fhttp "github.com/FastTLS/fhttp"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 )
@@ -83,7 +82,7 @@ func TestHTTP3LocalRequest(t *testing.T) {
 func TestHTTP3RequestCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	req, err := fhttp.NewRequestWithContext(ctx, "GET", "https://127.0.0.1:1", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://127.0.0.1:1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

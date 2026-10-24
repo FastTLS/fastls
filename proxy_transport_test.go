@@ -146,6 +146,39 @@ func TestProxyHandshakeContextClosesSocket(t *testing.T) {
 	}
 }
 
+func TestProxyRequestConnectTimeoutClosesDetachedDial(t *testing.T) {
+	for _, scheme := range []string{"http", "socks5", "socks5h"} {
+		t.Run(scheme, func(t *testing.T) {
+			closed := make(chan struct{})
+			address := proxyWire(t, func(c net.Conn) {
+				_, _ = io.Copy(io.Discard, c)
+				close(closed)
+			})
+			client, err := newClient(browser{}, 15, false, "", scheme+"://"+address)
+			if err != nil {
+				t.Fatal(err)
+			}
+			client.Transport = &requestTransport{
+				base: client.Transport, limits: Timeouts{Connect: 50 * time.Millisecond},
+			}
+			defer client.CloseIdleConnections()
+			response, err := client.Get("http://127.0.0.1:1")
+			if response != nil && response.Body != nil {
+				response.Body.Close()
+			}
+			var timeout *TimeoutError
+			if !errors.As(err, &timeout) || timeout.Phase != "connect" {
+				t.Fatalf("got %v, want connect timeout", err)
+			}
+			select {
+			case <-closed:
+			case <-time.After(time.Second):
+				t.Fatal("request timeout retained proxy socket")
+			}
+		})
+	}
+}
+
 func TestProxyValidationRedactsCredentials(t *testing.T) {
 	for _, raw := range []string{"http://name:secret@host:0", "http://name:secret@host/path", "http://name:secret@host?x=1", "socks4://name:secret@host", "http://name:sec%ZZret@host"} {
 		err := ValidateProxy(raw)

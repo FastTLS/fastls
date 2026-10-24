@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"strconv"
 	"sync"
 
-	http "github.com/FastTLS/fhttp"
-	http2 "github.com/FastTLS/fhttp/http2"
+	"golang.org/x/net/http2"
 	"golang.org/x/net/proxy"
 	"h12.io/socks"
 )
@@ -270,8 +270,7 @@ func (c *connectDialer) DialContext(ctx context.Context, network, address string
 	case "http/1.1":
 		return connectHTTP1(rawConn)
 	case "h2":
-		//TODO: update this with correct navigator
-		t := http2.Transport{Navigator: "chrome"}
+		t := http2.Transport{}
 		h2clientConn, err := t.NewClientConn(rawConn)
 		if err != nil {
 			_ = rawConn.Close()

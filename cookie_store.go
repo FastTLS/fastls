@@ -3,13 +3,12 @@ package fastls
 import (
 	"errors"
 	"net"
-	stdhttp "net/http"
+	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"sync"
 
-	http "github.com/FastTLS/fhttp"
-	"github.com/FastTLS/fhttp/cookiejar"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -70,7 +69,7 @@ func (s *CookieStore) SetCookie(u *url.URL, c *http.Cookie) error {
 	if c.MaxAge > 2147483647 {
 		return errors.New("max_age must not exceed 2147483647 seconds")
 	}
-	check := &stdhttp.Cookie{Name: c.Name, Value: c.Value, Path: c.Path, Domain: c.Domain, Expires: c.Expires}
+	check := &http.Cookie{Name: c.Name, Value: c.Value, Path: c.Path, Domain: c.Domain, Expires: c.Expires}
 	if err := check.Valid(); err != nil {
 		return err
 	}

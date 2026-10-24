@@ -5,12 +5,12 @@ import (
 	"errors"
 	"io"
 	"maps"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/FastTLS/fastls/profile"
-	http "github.com/FastTLS/fhttp"
 )
 
 // Session owns reusable connections for a fixed transport configuration.

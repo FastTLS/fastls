@@ -5,8 +5,8 @@ import (
 	"crypto/x509"
 	"errors"
 	"github.com/FastTLS/fastls/profile"
-	http "github.com/FastTLS/fhttp"
-	"github.com/FastTLS/fhttp/http2"
+	"github.com/FastTLS/ftransport"
+	"net/http"
 	"net/url"
 
 	"time"
@@ -26,7 +26,9 @@ type browser struct {
 	UserAgent            string
 	Cookies              []Cookie
 	CookieJar            http.CookieJar
-	HTTP2Settings        *http2.HTTP2Settings
+	HTTP2Settings        *ftransport.HTTP2Config
+	HeaderOrderKeys      []string
+	PHeaderOrderKeys     []string
 }
 
 var disabledRedirect = func(req *http.Request, via []*http.Request) error {

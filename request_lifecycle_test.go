@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	fhttp "github.com/FastTLS/fhttp"
+	"github.com/FastTLS/ftransport"
 )
 
 func TestRequestLifecycleRedirect(t *testing.T) {
@@ -68,7 +68,7 @@ func TestRequestLifecycleCanceledRoundTrip(t *testing.T) {
 	defer server.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	req, err := fhttp.NewRequestWithContext(ctx, "GET", server.URL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", server.URL, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,13 +185,16 @@ func TestRequestLifecycleStdlibAdapterMetadata(t *testing.T) {
 		fmt.Fprintf(w, "%s|%d|%s|%s", r.Host, r.ContentLength, r.Header.Get("User-Agent"), body)
 	}))
 	defer server.Close()
-	req, err := fhttp.NewRequest("POST", server.URL, strings.NewReader("payload"))
+	req, err := http.NewRequest("POST", server.URL, strings.NewReader("payload"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	req.Host = "virtual.example"
 	req.Header["User-Agent"] = []string{""}
-	req.Header[fhttp.HeaderOrderKey] = []string{"user-agent"}
+	req, err = ftransport.WithRequestOptions(req, ftransport.RequestOptions{HeaderOrder: []string{"user-agent"}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	transport := &http.Transport{}
 	defer transport.CloseIdleConnections()
 	resp, err := (&stdlibTransportAdapter{transport: transport}).RoundTrip(req)
@@ -225,9 +228,11 @@ func TestRequestLifecycleTimeout(t *testing.T) {
 		resp.Body.Close()
 	}
 	resp.Client.CloseIdleConnections()
+	elapsed := time.Since(started)
 	var timeout net.Error
-	if !errors.As(err, &timeout) || !timeout.Timeout() || time.Since(started) > 2500*time.Millisecond {
-		t.Fatalf("err=%v, elapsed=%v; want request timeout near 1s", err, time.Since(started))
+	timedOut := errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &timeout) && timeout.Timeout())
+	if !timedOut || elapsed < 750*time.Millisecond || elapsed > 2500*time.Millisecond {
+		t.Fatalf("err=%v, elapsed=%v; want request timeout near 1s", err, elapsed)
 	}
 }
 
@@ -281,7 +286,7 @@ func TestRequestLifecycleCloseIdleConnections(t *testing.T) {
 		if i == 2 {
 			closer.CloseIdleConnections()
 		}
-		req, err := fhttp.NewRequest("GET", server.URL, nil)
+		req, err := http.NewRequest("GET", server.URL, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -336,7 +341,7 @@ func TestRequestLifecycleResponseTrailers(t *testing.T) {
 		w.Header().Set("X-Checksum", "verified")
 	}))
 	defer server.Close()
-	req, err := fhttp.NewRequest("GET", server.URL, nil)
+	req, err := http.NewRequest("GET", server.URL, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

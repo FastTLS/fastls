@@ -154,7 +154,6 @@ func applyResolution(o *fastls.Options, result profile.Resolution) (profile.Matc
 		w.HTTP2SettingsString = l.HTTP2Settings
 		if l.HTTP2 != nil {
 			w.HTTP2Settings = fastls.ProfileHTTP2(*l.HTTP2)
-			w.HTTP2Settings.Explicit = false
 		}
 		if l.HTTP2Settings != "" {
 			h, pseudo, err := fastls.ParseH2SettingsStringWithPHeaderOrder(l.HTTP2Settings)
