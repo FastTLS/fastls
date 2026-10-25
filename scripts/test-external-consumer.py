@@ -101,7 +101,13 @@ def main():
         env["GOPROXY"] = "direct"
 
     with tempfile.TemporaryDirectory(prefix="fastls-external-consumer-") as temporary:
-        directory = Path(temporary)
+        root = Path(temporary)
+        directory = root / "consumer"
+        directory.mkdir()
+        # Do not let a developer or runner's shared module/build caches make a
+        # remote dependency look available when it is not.
+        env["GOMODCACHE"] = str(root / "modcache")
+        env["GOCACHE"] = str(root / "gocache")
         (directory / "consumer_test.go").write_text(CONSUMER_TEST, encoding="utf-8", newline="\n")
         run(["go", "mod", "init", "example.com/fastls-external-consumer"], directory, env)
         run(["go", "mod", "edit", "-go=1.26.0"], directory, env)
