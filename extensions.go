@@ -1,12 +1,9 @@
 package fastls
 
 import (
-	cryptorand "crypto/rand"
 	"fmt"
-	"math"
-	mathrand "math/rand"
+
 	"strconv"
-	"time"
 
 	utls "github.com/refraction-networking/utls"
 )
@@ -290,12 +287,9 @@ func buildTLSExtensionMap(browserType string, includePSK bool) map[string]utls.T
 		"65037": &utls.GREASEEncryptedClientHelloExtension{},
 	}
 
-	// 根据参数决定是否添加 PSK 扩展
-	// 如果JA3中包含41但没有实际PSK数据，使用FakePreSharedKeyExtension来模拟
-	// 为了确保扩展41出现在响应中，我们需要提供最小的有效PSK数据
-	// 为了更真实的指纹，我们生成变化的PSK数据（模拟真实浏览器的行为）
+	// PSK requires a real cached session; an empty extension is omitted by uTLS.
 	if includePSK {
-		pskExt := generateFakePSKExtension()
+		pskExt := &utls.UtlsPreSharedKeyExtension{}
 		extMap["41"] = pskExt
 	}
 
@@ -406,46 +400,5 @@ func getKeyShares(browserType string) []utls.KeyShare {
 			{Group: utls.CurveP256},
 			{Group: utls.CurveP384},
 		}
-	}
-}
-
-// generateFakePSKExtension 生成一个模拟真实浏览器的PSK扩展
-// 每次调用都会生成不同的数据，模拟真实浏览器每次请求都不同的行为
-func generateFakePSKExtension() *utls.FakePreSharedKeyExtension {
-	// 1. 生成随机的identity（模拟会话票据）
-	// 真实浏览器的会话票据通常较长，大约在80-150字节之间
-	// 根据分析，真实浏览器的identity长度通常在100-120字节左右
-	identityLen := 80 + int(time.Now().UnixNano()%71) // 80-150字节之间随机，更接近真实浏览器
-	identity := make([]byte, identityLen)
-	cryptorand.Read(identity)
-
-	// 2. 计算ObfuscatedTicketAge（混淆的票据年龄）
-	// 真实浏览器中，这个值基于会话创建时间和当前时间的差值
-	// 我们模拟一个合理的ticket age（通常在几秒到几小时之间）
-	// 使用一个随机的基础时间（模拟会话创建时间）
-	baseTime := time.Now().Add(-time.Duration(mathrand.Intn(3600)) * time.Second) // 0-1小时前
-	ticketAge := time.Since(baseTime)
-	obfuscatedTicketAge := uint32(ticketAge.Milliseconds())
-	// 添加一个随机的ageAdd值（服务器在NewSessionTicket中发送的）
-	ageAdd := uint32(mathrand.Int31()) // 生成0到2^31-1的随机数，然后转换为uint32
-	obfuscatedTicketAge = (obfuscatedTicketAge + ageAdd) & math.MaxUint32
-
-	// 3. 生成随机的binder（32字节，SHA256 HMAC长度）
-	// 真实浏览器中，binder是基于ClientHello消息计算的HMAC
-	// 我们使用随机数据来模拟
-	binder := make([]byte, 32)
-	cryptorand.Read(binder)
-
-	return &utls.FakePreSharedKeyExtension{
-		Identities: []utls.PskIdentity{
-			{
-				Label:               identity,
-				ObfuscatedTicketAge: obfuscatedTicketAge,
-			},
-		},
-		Binders: [][]byte{
-			binder,
-		},
-		OmitEmptyPsk: false, // 设置为false，确保扩展会被写入
 	}
 }

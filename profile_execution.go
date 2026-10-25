@@ -67,6 +67,7 @@ func ApplyProfile(o *Options, s profile.Spec) error {
 	w.UserAgent = w.requestUserAgent()
 	w.Profile = &s
 	w.Fingerprint = nil
+	w.FingerprintSignatureAlgorithms = nil
 	w.HTTP2SettingsString = ""
 	w.HTTP2Settings = ProfileHTTP2(s.HTTP2)
 	w.HeaderOrderKeys = slices.Clone(s.Headers.Order)

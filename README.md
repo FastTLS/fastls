@@ -44,7 +44,9 @@ func fetch(ctx context.Context, target string) ([]byte, error) {
 
 `Use` 必须显式提供 Provider。用户请求头值优先于生成默认值；旧名称和 UA 转换由下游处理。自定义 JA3/JA4R、`imitate.Apply` 和 `Options.Profile` 不需要生成器。支持的规范名称与验证范围以 Provider 的 List、Match 和证据为准，不能将生成版本身份视为真实浏览器全指纹验证。
 
-响应体由调用方关闭。无指纹请求在收到响应头后返回，取消、超时和读取错误可以在 Body.Read 时出现。完整 Spec 当前支持 HTTP1/HTTP2；完整 Spec 的 H3、WS Upgrade 任意头序和 H2 后续拨号取消仍有能力边界，见接入说明。
+响应体由调用方关闭。无指纹请求在收到响应头后返回，取消、超时和读取错误可以在 Body.Read 时出现。完整 Spec 当前支持 HTTP1/HTTP2；一次性请求和 `Session` 均支持请求 Trailer，`Session` 还支持流式上传、H2 全双工、阶段超时和按需内容解码。响应 Trailer 在响应体读到 EOF 后完整可用，响应也会报告最终协议与跳转后的 URL。
+
+H3 使用 `q` 前缀 JA4R 作为经校验的协议选择器，并支持 `VerifyTLS` 与 `TLSRootCAs`；标准 Go QUIC TLS 不能复刻任意 ClientHello 扩展顺序，因此不宣称完整 H3 浏览器指纹。H3 明确拒绝代理，避免静默直连。WS/WSS 使用 HTTP/1.1 Upgrade；任意 Upgrade 头序、压缩、重定向和 HTTP/2 Extended CONNECT 不在当前支持范围。H2 后续拨号取消仍有能力边界，见接入说明。
 
 ## 文档与工具
 

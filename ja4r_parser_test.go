@@ -71,7 +71,7 @@ func TestJA4RPrefixExtensions(t *testing.T) {
 			if sni != 1 || alpn != 1 {
 				t.Fatalf("protocol=%s explicit=%t SNI=%d ALPN=%d", protocol, explicit, sni, alpn)
 			}
-			if _, ok := spec.Extensions[len(spec.Extensions)-1].(*utls.FakePreSharedKeyExtension); !ok {
+			if _, ok := spec.Extensions[len(spec.Extensions)-1].(*utls.UtlsPreSharedKeyExtension); !ok {
 				t.Fatal("PSK must remain last")
 			}
 		}

@@ -225,7 +225,7 @@ func ParseJA4R(ja4r string, userAgent string) (*utls.ClientHelloSpec, error) {
 			if ext, ok := extMap[extKey]; ok {
 				pskExt = ext
 			} else {
-				pskExt = generateFakePSKExtension()
+				pskExt = &utls.UtlsPreSharedKeyExtension{}
 			}
 			continue // 先跳过，最后再添加
 		}

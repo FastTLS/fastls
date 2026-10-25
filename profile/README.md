@@ -6,6 +6,10 @@
 
 `Provider.Resolve(context.Context, ResolveRequest)` 返回恰好一个完整 `Spec` 或明确的 `LegacyDefinition`。Legacy 只有历史 JA3/JA4R 与中立 HTTP2 参数，不能借其标记伪装为完整 Spec。`HeaderPolicy` 描述默认、覆盖、按原值覆盖、删除及按名称前缀删除；多值保存在 Values，业务地址、代理、Body、Cookie、认证、超时不会传给 Provider。
 
+2026-10-25：官方生成器全部输出完整 Spec。HeaderConfig 增加 `http1_defaults`、`http2_defaults`、`http1_order`；协议专属默认值不能与公共默认值重叠，HTTP/2 不接受连接专属头，头名大小写仅用于 HTTP/1。`shuffle-chrome` 固定 GREASE/padding 的位置并随机排列其他扩展。新行为通过 `http.headers.protocol.v1`、`tls.signature-advertised.v1`、`tls.shuffle-chrome.v1` 能力标记明确要求后端支持。
+
+`capabilities.advertised_only` 显式区分线上声明与密码算法实现；缺少该标记的未实现声明仍被拒绝，后端不能验证的算法不会因标记而获得实现。LegacyDefinition 可额外携带 `signature_algorithms` 补足 JA3 未编码的字段；该兼容输入不用于官方目录的日常维护。
+
 `DecodeCatalog` / `NewRegistry` 支持严格 JSON、单层基线、显式字段 presence 和不可变查询。`NewProvider` 将完整 Catalog 用作离线源。`DecodeBundle` 接收带版本的闭合导出快照；拒绝未知字段、重复键/ID、超限和非法响应，返回隔离的只读 Provider。固定 Bundle 不重新推导不同 UA 的 Client Hints。
 
 先前未发布的产品查询函数 LookupLegacy、LegacyJA4R、LookupBuiltinSelection、LookupCompatibilitySelection 等已移入独立生成器 internal/catalog；它们不再属于共享规范。应用改用独立 imitate.New().Resolve/List/Export；核心已删除历史浏览器公开预设及冻结目录，Use 需要显式 Provider。产品数据变更不会触及本模块。

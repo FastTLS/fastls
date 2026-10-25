@@ -123,6 +123,7 @@ func applyResolution(o *fastls.Options, result profile.Resolution) (profile.Matc
 	w.HeaderValues = nil
 	w.UserAgent = ""
 	w.FingerprintUserAgent = ""
+	w.FingerprintSignatureAlgorithms = nil
 	w.Profile = nil
 	w.HTTP2Settings = nil
 	w.HTTP2SettingsString = ""
@@ -148,7 +149,10 @@ func applyResolution(o *fastls.Options, result profile.Resolution) (profile.Matc
 		}
 		w.UserAgent = l.UserAgent
 		w.FingerprintUserAgent = l.UserAgent
-		if _, err := fastls.StringToSpec(l.Hello, l.UserAgent); err != nil {
+		for _, code := range l.SignatureAlgorithms {
+			w.FingerprintSignatureAlgorithms = append(w.FingerprintSignatureAlgorithms, uint16(code))
+		}
+		if _, err := fastls.StringToSpecWithSignatureAlgorithms(l.Hello, l.UserAgent, w.FingerprintSignatureAlgorithms); err != nil {
 			return zero, fmt.Errorf("%w: compatibility TLS adapter: %v", profile.ErrInvalidProfile, err)
 		}
 		w.HTTP2SettingsString = l.HTTP2Settings

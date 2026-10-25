@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/textproto"
 	"slices"
 	"strings"
 	"sync"
@@ -23,19 +24,21 @@ import (
 type duplexKey struct{}
 
 type roundTripper struct {
-	KeepAlive            bool
-	Lifetime             context.Context
-	VerifyTLS            bool
-	TLSRootCAs           *x509.CertPool
-	Profile              *profile.Spec
-	FingerprintUserAgent string
-	Fingerprint          Fingerprint
-	UserAgent            string
-	Cookies              []Cookie
-	headerOrder          []string
-	pseudoHeaderOrder    []string
-	http2Settings        *ftransport.HTTP2Config
-	dialer               proxy.ContextDialer
+	KeepAlive                      bool
+	Lifetime                       context.Context
+	ProxyConfigured                bool
+	VerifyTLS                      bool
+	TLSRootCAs                     *x509.CertPool
+	Profile                        *profile.Spec
+	FingerprintUserAgent           string
+	FingerprintSignatureAlgorithms []uint16
+	Fingerprint                    Fingerprint
+	UserAgent                      string
+	Cookies                        []Cookie
+	headerOrder                    []string
+	pseudoHeaderOrder              []string
+	http2Settings                  *ftransport.HTTP2Config
+	dialer                         proxy.ContextDialer
 
 	mu                sync.Mutex
 	cachedTransports  map[string]http.RoundTripper
@@ -72,6 +75,12 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	if req.Context().Value(duplexKey{}) == true && protocol != ftransport.ProtocolHTTP2 {
 		return nil, errors.New("duplex requires HTTP/2; negotiated protocol is unsupported")
+	}
+	if rt.Profile != nil {
+		req, err = applyProtocolHeaders(req, rt.Profile.Headers, protocol)
+		if err != nil {
+			return nil, err
+		}
 	}
 	response, err := transport.RoundTrip(req)
 	if err != nil && req.Context().Err() != nil {
@@ -116,7 +125,13 @@ func (rt *roundTripper) getTransport(req *http.Request, key string) (http.RoundT
 		protocol = ftransport.ProtocolHTTP1
 	case "https":
 		if rt.Fingerprint != nil && !rt.Fingerprint.IsEmpty() && strings.HasPrefix(rt.Fingerprint.Value(), "q") {
-			h3 := newHTTP3Transport(rt.Fingerprint, rt.UserAgent, rt.Cookies, rt.dialer)
+			if rt.ProxyConfigured {
+				return nil, 0, errors.New("fastls: HTTP/3 does not support configured proxies")
+			}
+			h3, err := newHTTP3Transport(rt.Fingerprint, rt.UserAgent, rt.VerifyTLS, rt.TLSRootCAs)
+			if err != nil {
+				return nil, 0, err
+			}
 			rt.cacheTransport(key, h3, 0)
 			return h3, 0, nil
 		}
@@ -239,15 +254,17 @@ func (rt *roundTripper) openTLS(ctx context.Context, network, address string, al
 	if rt.Profile != nil {
 		spec, err = compiler.TLS(*rt.Profile)
 	} else {
-		spec, err = StringToSpec(rt.Fingerprint.Value(), rt.protocolUserAgent())
+		spec, err = StringToSpecWithSignatureAlgorithms(rt.Fingerprint.Value(), rt.protocolUserAgent(), rt.FingerprintSignatureAlgorithms)
 	}
 	if err != nil {
 		_ = rawConn.Close()
 		return ftransport.DialResult{}, err
 	}
+	noTickets := rt.Profile != nil && rt.Profile.TLS.SessionPolicy == "disabled"
 	conn := utls.UClient(rawConn, &utls.Config{
 		ServerName: host, OmitEmptyPsk: true,
-		InsecureSkipVerify: !rt.VerifyTLS, RootCAs: rt.TLSRootCAs,
+		SessionTicketsDisabled: noTickets,
+		InsecureSkipVerify:     !rt.VerifyTLS, RootCAs: rt.TLSRootCAs,
 	}, utls.HelloCustom)
 	if err := conn.ApplyPreset(spec); err != nil {
 		_ = conn.Close()
@@ -333,11 +350,12 @@ func newRoundTripper(browser browser, dialers ...proxy.ContextDialer) http.Round
 		dialer = dialers[0]
 	}
 	return &roundTripper{
-		KeepAlive: browser.KeepAlive, Lifetime: browser.Lifetime,
+		KeepAlive: browser.KeepAlive, Lifetime: browser.Lifetime, ProxyConfigured: browser.ProxyConfigured,
 		VerifyTLS: browser.VerifyTLS, TLSRootCAs: browser.TLSRootCAs,
 		Profile: browser.Profile, Fingerprint: browser.Fingerprint,
 		UserAgent: browser.UserAgent, FingerprintUserAgent: browser.FingerprintUserAgent,
-		Cookies: browser.Cookies, headerOrder: slices.Clone(browser.HeaderOrderKeys),
+		FingerprintSignatureAlgorithms: append([]uint16(nil), browser.FingerprintSignatureAlgorithms...),
+		Cookies:                        browser.Cookies, headerOrder: slices.Clone(browser.HeaderOrderKeys),
 		pseudoHeaderOrder: slices.Clone(browser.PHeaderOrderKeys),
 		http2Settings:     browser.HTTP2Settings, dialer: dialer,
 		cachedTransports:  make(map[string]http.RoundTripper),
@@ -352,6 +370,46 @@ func (rt *roundTripper) protocolUserAgent() string {
 		return rt.FingerprintUserAgent
 	}
 	return rt.UserAgent
+}
+
+// applyProtocolHeaders applies protocol-specific defaults only after ALPN is
+// known. Caller values, including explicit empty values, take precedence.
+func applyProtocolHeaders(req *http.Request, headers profile.HeaderConfig, protocol ftransport.Protocol) (*http.Request, error) {
+	var defaults []profile.Header
+	switch protocol {
+	case ftransport.ProtocolHTTP1:
+		defaults = headers.HTTP1Defaults
+	case ftransport.ProtocolHTTP2:
+		defaults = headers.HTTP2Defaults
+	default:
+		return req, nil
+	}
+	for _, header := range defaults {
+		present := false
+		for name := range req.Header {
+			if strings.EqualFold(name, header.Name) {
+				present = true
+				break
+			}
+		}
+		if !present {
+			req.Header[textproto.CanonicalMIMEHeaderKey(header.Name)] = slices.Clone(header.Values)
+		}
+	}
+	if protocol != ftransport.ProtocolHTTP1 || len(headers.HTTP1Order) == 0 {
+		return req, nil
+	}
+	order := slices.Clone(headers.HTTP1Order)
+	for _, wireName := range order {
+		for name, values := range req.Header {
+			if name != wireName && strings.EqualFold(name, wireName) {
+				delete(req.Header, name)
+				req.Header[wireName] = values
+				break
+			}
+		}
+	}
+	return ftransport.WithRequestOptions(req, ftransport.RequestOptions{HeaderOrder: order})
 }
 
 var _ http.RoundTripper = (*roundTripper)(nil)

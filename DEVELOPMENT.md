@@ -12,7 +12,7 @@
 
 ## 本地核心检查
 
-在核心目录执行；当前本地 go.work 连接并列 fhttp 和 profile 模块。不要在公共 go.mod 中加入本机绝对路径。
+在核心目录执行；当前本地 go.work 连接 ftransport、profile、imitate 与联调模块。不要在公共 go.mod 中加入本机绝对路径。
 
 ```sh
 go test ./... -count=1 -timeout 90s
@@ -34,7 +34,7 @@ python scripts/check-peet.py
 
 每次在外层 reports 下新建目录，保存 HTML、Markdown、JSON、JUnit、原始执行日志、逐请求响应和运行清单。观测记录包含输入/预期/实际JA3、JA3 hash、JA4/JA4R、协商协议、Akamai指纹与UA；自定义配置严格比较完整JA3，标准库只验证观测有效性，不固定随Go版本变化的指纹。报告中的原始响应包含服务返回的出口IP等信息。
 
-读取失败时也保存已读字节、部分响应和错误阶段。原生 Go 响应额外记录 HTTP 协议、ContentLength、传输编码、自动解压标志和响应头；Fastls 旧 Response 接口只提供部分元信息，缺失项保持未知。自动解压后 ContentLength 可能为 -1，不能直接当作线上原始长度比较。
+读取失败时也保存已读字节、部分响应和错误阶段。原生 Go 响应额外记录 ContentLength、传输编码和自动解压标志；Fastls Response 记录协议、最终 URL、多值头与 Trailer，但仍不直接暴露 ContentLength。自动解压后 ContentLength 可能为 -1，不能直接当作线上原始长度比较。
 
 连接生命周期回归在 `connection_lifecycle_test.go`：覆盖同一指纹客户端连续请求、同站跳转、HTTP1/HTTP2关闭空闲后重连、保留活跃响应及并发访问。ALPN探测连接只交接一次，后续连接由HTTP传输层管理。GOST启动检查须完成真实代理请求，不使用只连接端口就关闭的探测。
 
@@ -42,7 +42,7 @@ python scripts/check-peet.py
 
 ## 跨仓验收
 
-在包含 fastls、fhttp、imitate 和 fastls-lab 的外层工作区执行：
+在包含 fastls、ftransport、imitate 和 fastls-lab 的外层工作区执行：
 
 ```sh
 python fastls/scripts/verify-imitate.py --all

@@ -23,6 +23,10 @@ options.Headers["Sec-Ch-Ua"] = "caller-defined-value"
 
 Apply(&options, spec)、Options.Profile、自定义 JA3/JA4R 都不要求独立生成器。Register(data) 返回隔离的离线 Provider，无全局注册。新离线包与在线源采用相同的用户头优先规则，标准 List/Export 不再包含旧别名或 compat-v1。
 
+正式指纹目录现在统一使用完整 Spec，TLS 参数不再从 JA3 的缺失字段推导。`headers.http1_defaults` / `http2_defaults` 在 ALPN 确定后应用默认值，用户的显式值及空值优先；`http1_order` 同时指定 HTTP/1 顺序和头名大小写。带 `Connection: keep-alive` 默认值的配置允许 HTTP/1 持久连接，调用方仍应关闭响应体及不再使用的空闲连接。
+
+自定义 JA3/JA4R 继续支持。冷连接不再生成假 PSK identity/binder，只有真正缓存的会话才能产生 PSK 扩展。JA3 缺少签名列表时仍使用历史默认值；需要完整覆盖可设置 `Options.FingerprintSignatureAlgorithms` 或调用 `StringToSpecWithSignatureAlgorithms`，更丰富的参数应使用完整 Spec。这些代码点声明不会自动增加后端的密码算法实现；ML-DSA 的声明必须与实际协商能力区分。
+
 支持完整 Spec 的 TLS1.2/1.3 与已实现扩展、有序 HTTP1/HTTP2 参数。WS/WSS 允许覆盖头值，完整 Spec 的显式 Upgrade 头序及 H2/H3 ALPN 仍返回 UnsupportedFeature；不宣称 Gorilla 能复刻任意 Upgrade 顺序。H3 不属于完整 Spec 的当前支持范围。
 
 协议解析身份与实际请求 UA 分离：FingerprintUserAgent 供后端固定解析使用，请不要将它当作业务 UA 修改。Match 产品/版本/平台描述选中的配置，Match.UserAgent 是 Use 当时的值。

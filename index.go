@@ -19,24 +19,27 @@ import (
 
 // Options 设置 Fastls 客户端选项
 type Options struct {
-	reuseConnections     bool
-	lifetime             context.Context
-	FingerprintUserAgent string                  `json:"-"` // Protocol parser identity; request headers never change it.
-	FingerprintProvider  profile.Provider        `json:"-"`
-	Profile              *profile.Spec           `json:"profile,omitempty"`
-	HeaderValues         map[string][]string     `json:"-"`
-	URL                  string                  `json:"url"`
-	Method               string                  `json:"method"`
-	Headers              map[string]string       `json:"headers"`
-	Body                 string                  `json:"body"`
-	Fingerprint          Fingerprint             `json:"fingerprint"` // 指纹接口，支持 Ja3、Ja4 等
-	TLSExtensions        *TLSExtensions          `json:"-"`
-	HTTP2Settings        *ftransport.HTTP2Config `json:"-"`
-	HTTP2SettingsString  string                  `json:"http2SettingsString"` // HTTP/2 设置字符串，如果设置则覆盖 HTTP2Settings 和 PHeaderOrderKeys
-	PHeaderOrderKeys     []string                `json:"-"`
-	HeaderOrderKeys      []string                `json:"-"`
-	UserAgent            string                  `json:"userAgent"`
-	Proxy                string                  `json:"proxy"`
+	reuseConnections               bool
+	lifetime                       context.Context
+	FingerprintUserAgent           string              `json:"-"` // Protocol parser identity; request headers never change it.
+	FingerprintSignatureAlgorithms []uint16            `json:"-"` // Explicit wire declarations omitted by JA3; does not add cryptographic implementations.
+	FingerprintProvider            profile.Provider    `json:"-"`
+	Profile                        *profile.Spec       `json:"profile,omitempty"`
+	HeaderValues                   map[string][]string `json:"-"`
+	URL                            string              `json:"url"`
+	Method                         string              `json:"method"`
+	Headers                        map[string]string   `json:"headers"`
+	Body                           string              `json:"body"`
+	// Trailers contains request trailers for one-shot requests.
+	Trailers            http.Header             `json:"-"`
+	Fingerprint         Fingerprint             `json:"fingerprint"` // 指纹接口，支持 Ja3、Ja4 等
+	TLSExtensions       *TLSExtensions          `json:"-"`
+	HTTP2Settings       *ftransport.HTTP2Config `json:"-"`
+	HTTP2SettingsString string                  `json:"http2SettingsString"` // HTTP/2 设置字符串，如果设置则覆盖 HTTP2Settings 和 PHeaderOrderKeys
+	PHeaderOrderKeys    []string                `json:"-"`
+	HeaderOrderKeys     []string                `json:"-"`
+	UserAgent           string                  `json:"userAgent"`
+	Proxy               string                  `json:"proxy"`
 	// ProxyTLSRootCAs replaces system roots for HTTPS proxy TLS only.
 	ProxyTLSRootCAs *x509.CertPool `json:"-"`
 	Cookies         []Cookie       `json:"cookies"`
@@ -61,10 +64,14 @@ type requestContext struct {
 // Response 包含 Fastls 响应数据
 type Response struct {
 	// RequestHasBody describes the final request after redirects.
-	RequestHasBody   bool
-	Status           int
-	Body             io.ReadCloser
-	Headers          map[string]string
+	RequestHasBody bool
+	Status         int
+	Protocol       string
+	FinalURL       string
+	Body           io.ReadCloser
+	Headers        map[string]string
+	// Trailer is populated while Body is read and is complete after EOF.
+	Trailer          http.Header
 	Client           http.Client
 	HeaderValues     map[string][]string
 	WireHeaderValues map[string][]string
@@ -125,20 +132,22 @@ func processRequest(options *Options, shared ...http.Client) (*requestContext, e
 	}
 
 	var browser = browser{
-		KeepAlive:            options.reuseConnections,
-		Lifetime:             options.lifetime,
-		VerifyTLS:            options.VerifyTLS,
-		TLSRootCAs:           options.TLSRootCAs,
-		ProxyTLSRootCAs:      options.ProxyTLSRootCAs,
-		Fingerprint:          options.Fingerprint,
-		Profile:              options.Profile,
-		UserAgent:            options.UserAgent,
-		FingerprintUserAgent: options.FingerprintUserAgent,
-		Cookies:              options.Cookies,
-		CookieJar:            options.CookieJar,
-		HTTP2Settings:        options.HTTP2Settings,
-		HeaderOrderKeys:      options.HeaderOrderKeys,
-		PHeaderOrderKeys:     options.PHeaderOrderKeys,
+		KeepAlive:                      options.reuseConnections,
+		Lifetime:                       options.lifetime,
+		ProxyConfigured:                options.Proxy != "",
+		VerifyTLS:                      options.VerifyTLS,
+		TLSRootCAs:                     options.TLSRootCAs,
+		ProxyTLSRootCAs:                options.ProxyTLSRootCAs,
+		Fingerprint:                    options.Fingerprint,
+		Profile:                        options.Profile,
+		UserAgent:                      options.UserAgent,
+		FingerprintUserAgent:           options.FingerprintUserAgent,
+		FingerprintSignatureAlgorithms: append([]uint16(nil), options.FingerprintSignatureAlgorithms...),
+		Cookies:                        options.Cookies,
+		CookieJar:                      options.CookieJar,
+		HTTP2Settings:                  options.HTTP2Settings,
+		HeaderOrderKeys:                options.HeaderOrderKeys,
+		PHeaderOrderKeys:               options.PHeaderOrderKeys,
 	}
 
 	var client http.Client
@@ -179,8 +188,29 @@ func processRequest(options *Options, shared ...http.Client) (*requestContext, e
 	for k, values := range options.HeaderValues {
 		req.Header[k] = append([]string(nil), values...)
 	}
-	if req.Header.Get("Host") == "" {
-		req.Header.Set("Host", u.Host)
+	var hostValues []string
+	for name, values := range req.Header {
+		if strings.EqualFold(name, "Host") {
+			hostValues = append(hostValues, values...)
+			delete(req.Header, name)
+		}
+	}
+	if len(hostValues) > 1 {
+		return nil, fmt.Errorf("Host requires exactly one value")
+	}
+	if len(hostValues) == 1 {
+		if hostValues[0] == "" {
+			return nil, fmt.Errorf("Host cannot be empty")
+		}
+		req.Host = hostValues[0]
+	} else {
+		req.Host = u.Host
+	}
+	if options.Trailers != nil {
+		req.Trailer = options.Trailers.Clone()
+		// HTTP/1.1 request trailers require chunked framing. Keeping an exact
+		// Content-Length would cause net/http to omit the trailer block.
+		req.ContentLength = -1
 	}
 	if _, exists := req.Header["User-Agent"]; !exists {
 		req.Header.Set("User-Agent", options.UserAgent)
@@ -216,7 +246,15 @@ func dispatcher(res *requestContext) (response Response, err error) {
 		}
 	}
 	hasBody := resp.Request != nil && resp.Request.Body != nil && resp.Request.Body != http.NoBody
-	return Response{Status: resp.StatusCode, Body: resp.Body, Headers: headers, Client: res.client, HeaderValues: headerValues, RequestHasBody: hasBody}, nil
+	finalURL := ""
+	if resp.Request != nil && resp.Request.URL != nil {
+		finalURL = resp.Request.URL.String()
+	}
+	return Response{
+		Status: resp.StatusCode, Protocol: resp.Proto, FinalURL: finalURL,
+		Body: resp.Body, Headers: headers, Trailer: resp.Trailer, Client: res.client,
+		HeaderValues: headerValues, RequestHasBody: hasBody,
+	}, nil
 
 }
 

@@ -15,20 +15,22 @@ import (
 )
 
 type browser struct {
-	KeepAlive            bool
-	Lifetime             context.Context
-	VerifyTLS            bool
-	TLSRootCAs           *x509.CertPool
-	ProxyTLSRootCAs      *x509.CertPool
-	Profile              *profile.Spec
-	FingerprintUserAgent string
-	Fingerprint          Fingerprint
-	UserAgent            string
-	Cookies              []Cookie
-	CookieJar            http.CookieJar
-	HTTP2Settings        *ftransport.HTTP2Config
-	HeaderOrderKeys      []string
-	PHeaderOrderKeys     []string
+	KeepAlive                      bool
+	Lifetime                       context.Context
+	ProxyConfigured                bool
+	VerifyTLS                      bool
+	TLSRootCAs                     *x509.CertPool
+	ProxyTLSRootCAs                *x509.CertPool
+	Profile                        *profile.Spec
+	FingerprintUserAgent           string
+	FingerprintSignatureAlgorithms []uint16
+	Fingerprint                    Fingerprint
+	UserAgent                      string
+	Cookies                        []Cookie
+	CookieJar                      http.CookieJar
+	HTTP2Settings                  *ftransport.HTTP2Config
+	HeaderOrderKeys                []string
+	PHeaderOrderKeys               []string
 }
 
 var disabledRedirect = func(req *http.Request, via []*http.Request) error {

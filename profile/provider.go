@@ -31,13 +31,16 @@ const (
 )
 
 type LegacyDefinition struct {
-	Format        LegacyFormat `json:"format"`
-	Hello         string       `json:"hello"`
-	UserAgent     string       `json:"user_agent"`
-	HTTP2         *HTTP2Config `json:"http2,omitempty"`
-	HTTP2Settings string       `json:"http2_settings,omitempty"`
-	HeaderOrder   []string     `json:"header_order,omitempty"`
-	PseudoOrder   []string     `json:"pseudo_order,omitempty"`
+	// SignatureAlgorithms overrides the list omitted by JA3. These are wire
+	// declarations, not a statement of backend signature verification support.
+	SignatureAlgorithms []Code       `json:"signature_algorithms,omitempty"`
+	Format              LegacyFormat `json:"format"`
+	Hello               string       `json:"hello"`
+	UserAgent           string       `json:"user_agent"`
+	HTTP2               *HTTP2Config `json:"http2,omitempty"`
+	HTTP2Settings       string       `json:"http2_settings,omitempty"`
+	HeaderOrder         []string     `json:"header_order,omitempty"`
+	PseudoOrder         []string     `json:"pseudo_order,omitempty"`
 }
 
 // HeaderRule stores each value once; Mode is default or replace.

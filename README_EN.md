@@ -44,7 +44,9 @@ func fetch(ctx context.Context, target string) ([]byte, error) {
 
 `Use` requires an explicit Provider. Caller header values override generated defaults. Downstream adapters handle legacy names and UA inference. Custom JA3/JA4R, `imitate.Apply`, and `Options.Profile` work without a generator. Consult the provider's List, Match and evidence for supported IDs and verification coverage; generating a version identity does not verify a real browser's complete fingerprint.
 
-Close response bodies after use. Requests without a fingerprint return after response headers arrive; cancellation, timeouts and network errors can occur while reading Body. Complete Spec execution supports HTTP1/HTTP2. H3, arbitrary WS Upgrade header ordering, and cancellation during subsequent H2 dialing remain bounded capabilities; see the integration notes.
+Close response bodies after use. Requests without a fingerprint return after response headers arrive; cancellation, timeouts and network errors can occur while reading Body. Complete Spec execution supports HTTP1/HTTP2. One-shot requests and `Session` support request trailers; `Session` also supports streaming uploads, H2 duplex, phase timeouts, and opt-in content decoding. Response trailers are complete after EOF, and responses report the final protocol and post-redirect URL.
+
+H3 accepts a q-prefixed JA4R value as a validated protocol selector and honors `VerifyTLS` and `TLSRootCAs`. Go's standard QUIC TLS stack cannot reproduce arbitrary ClientHello extension order, so this is not a claim of complete browser H3 fingerprint fidelity. H3 explicitly rejects configured proxies instead of silently connecting directly. WS/WSS uses HTTP/1.1 Upgrade; arbitrary Upgrade header order, compression, redirects, and HTTP/2 Extended CONNECT are outside the current scope. Cancellation during subsequent H2 dialing remains a bounded capability; see the integration notes.
 
 ## Documentation and tools
 

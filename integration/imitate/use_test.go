@@ -56,7 +56,7 @@ func TestHeadersAreOverridesNotSelectors(t *testing.T) {
 		if m.Product != "chrome" || m.ProfileID != "chrome/156/windows" || o.UserAgent != ua {
 			t.Fatal(m)
 		}
-		if o.Fingerprint.Value() != base.Fingerprint.Value() || !slices.Equal(o.HeaderOrderKeys, base.HeaderOrderKeys) || o.HTTP2SettingsString != base.HTTP2SettingsString || o.FingerprintUserAgent != base.FingerprintUserAgent {
+		if o.Profile == nil || base.Profile == nil || !reflect.DeepEqual(o.Profile.TLS, base.Profile.TLS) || !reflect.DeepEqual(o.Profile.HTTP2, base.Profile.HTTP2) || !slices.Equal(o.HeaderOrderKeys, base.HeaderOrderKeys) || o.FingerprintUserAgent != base.FingerprintUserAgent {
 			t.Fatal("header override changed protocol")
 		}
 		if o.Headers["Sec-Ch-Ua"] != "arbitrary-hints" || o.Headers["Sec-Fetch-Mode"] != "cors" || o.Headers["Accept-Encoding"] != "identity" {

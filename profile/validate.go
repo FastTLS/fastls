@@ -29,6 +29,41 @@ func Validate(s Spec) error {
 	if err := validateOrder(s.Headers.Order, s.Headers.PseudoOrder); err != nil {
 		return fail("headers.order", err.Error())
 	}
+	if err := validateOrder(s.Headers.HTTP1Order, nil); err != nil {
+		return fail("headers.http1_order", err.Error())
+	}
+	for _, headers := range [][]Header{s.Headers.HTTP1Defaults, s.Headers.HTTP2Defaults} {
+		if err := validateHeaders(headers); err != nil {
+			return fail("headers.protocol_defaults", err.Error())
+		}
+		for _, h := range headers {
+			if strings.EqualFold(h.Name, "user-agent") || strings.EqualFold(h.Name, "host") {
+				return fail("headers.protocol_defaults", "identity and authority belong to common headers")
+			}
+		}
+	}
+	common := map[string]bool{"user-agent": true, "host": true}
+	for _, h := range s.Headers.Defaults {
+		common[strings.ToLower(h.Name)] = true
+	}
+	if s.Identity != nil {
+		for _, h := range s.Identity.ClientHints {
+			common[strings.ToLower(h.Name)] = true
+		}
+	}
+	for _, headers := range [][]Header{s.Headers.HTTP1Defaults, s.Headers.HTTP2Defaults} {
+		for _, h := range headers {
+			if common[strings.ToLower(h.Name)] {
+				return fail("headers.protocol_defaults", "protocol defaults conflict with common defaults")
+			}
+		}
+	}
+	for _, h := range s.Headers.HTTP2Defaults {
+		switch strings.ToLower(h.Name) {
+		case "connection", "keep-alive", "proxy-connection", "transfer-encoding", "upgrade":
+			return fail("headers.http2_defaults", "HTTP2 forbids connection-specific headers")
+		}
+	}
 	if s.Identity != nil && strings.ContainsAny(s.Identity.UserAgent, "\r\n\x00") {
 		return fail("identity.user_agent", "invalid control character")
 	}
@@ -113,7 +148,7 @@ func Validate(s Spec) error {
 		}
 	}
 	switch s.TLS.ExtensionOrder {
-	case "", "fixed", "shuffle-except-psk-last":
+	case "", "fixed", "shuffle-except-psk-last", "shuffle-chrome":
 	default:
 		return fail("tls.extension_order", "unknown generation strategy")
 	}

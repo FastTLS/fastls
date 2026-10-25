@@ -60,3 +60,30 @@ func TestUnsupportedParametersAreExplicit(t *testing.T) {
 		})
 	}
 }
+
+func TestAdvertisedOnlySignaturesAndChromeShuffle(t *testing.T) {
+	s := fixture()
+	s.TLS.Extensions[2].SignatureAlgorithms = []profile.Code{0x0a0a, 0x0904, 0x0403}
+	s.Capabilities.AdvertisedOnly = []profile.Code{0x0904}
+	s.TLS.ExtensionOrder = "shuffle-chrome"
+	s.TLS.Extensions = append([]profile.Extension{{ID: 0x0a0a}}, s.TLS.Extensions...)
+	s.TLS.Extensions = append(s.TLS.Extensions, profile.Extension{ID: 0x0a0a})
+	for i := 0; i < 20; i++ {
+		preset, err := TLS(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := preset.Extensions[0].(*utls.UtlsGREASEExtension); !ok {
+			t.Fatal("leading GREASE moved")
+		}
+		if _, ok := preset.Extensions[len(preset.Extensions)-1].(*utls.UtlsGREASEExtension); !ok {
+			t.Fatal("trailing GREASE moved")
+		}
+	}
+	// An explicit advertisement flag is not blanket permission for unknown algorithms.
+	s.TLS.Extensions[3].SignatureAlgorithms = []profile.Code{0xffff}
+	s.Capabilities.AdvertisedOnly = []profile.Code{0xffff}
+	if _, err := TLS(s); !errors.Is(err, profile.ErrUnsupportedFeature) {
+		t.Fatal(err)
+	}
+}

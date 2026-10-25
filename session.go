@@ -36,13 +36,16 @@ type RequestOptions struct {
 	Body            string
 	// BodyReader is a one-shot stream. Redirects requiring body replay are returned.
 	// Its Close must unblock Read when the request is cancelled.
-	BodyReader      io.ReadCloser
+	BodyReader io.ReadCloser
+	// Trailer contains request trailers. Values are cloned before dispatch.
+	Trailers        http.Header
 	DisableRedirect bool
 }
 
 // NewSession fixes the transport identity. Set request deadlines through DoContext's context;
 // Options.Timeout does not apply to reusable sessions.
 func NewSession(options Options) (*Session, error) {
+	options.FingerprintSignatureAlgorithms = append([]uint16(nil), options.FingerprintSignatureAlgorithms...)
 	if options.CookieJar == nil {
 		options.CookieJar = NewCookieStore()
 	}
@@ -151,6 +154,9 @@ func (s *Session) DoContext(ctx context.Context, url string, request RequestOpti
 		if !request.Duplex {
 			defer stopBody()
 		}
+	}
+	if request.Trailers != nil {
+		prepared.req.Trailer = request.Trailers.Clone()
 	}
 	response, err := dispatcher(prepared)
 	if err != nil {

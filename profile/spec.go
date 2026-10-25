@@ -105,10 +105,13 @@ type Header struct {
 	Values []string `json:"values"`
 }
 type HeaderConfig struct {
-	Defaults    []Header `json:"defaults"`
-	Order       []string `json:"order"`
-	PseudoOrder []string `json:"pseudo_order"`
-	ExtraOrder  string   `json:"extra_order,omitempty"`
+	HTTP1Defaults []Header `json:"http1_defaults,omitempty"`
+	HTTP2Defaults []Header `json:"http2_defaults,omitempty"`
+	HTTP1Order    []string `json:"http1_order,omitempty"` // Ordered wire names, including HTTP/1 capitalization.
+	Defaults      []Header `json:"defaults"`
+	Order         []string `json:"order"`
+	PseudoOrder   []string `json:"pseudo_order"`
+	ExtraOrder    string   `json:"extra_order,omitempty"`
 }
 type Identity struct {
 	UserAgent   string   `json:"user_agent,omitempty"`
@@ -164,6 +167,9 @@ func Clone(s Spec) Spec {
 		s.HTTP2.HeaderPriority = &v
 	}
 	s.Headers.Defaults = cloneHeaders(s.Headers.Defaults)
+	s.Headers.HTTP1Defaults = cloneHeaders(s.Headers.HTTP1Defaults)
+	s.Headers.HTTP2Defaults = cloneHeaders(s.Headers.HTTP2Defaults)
+	s.Headers.HTTP1Order = slices.Clone(s.Headers.HTTP1Order)
 	s.Headers.Order = slices.Clone(s.Headers.Order)
 	s.Headers.PseudoOrder = slices.Clone(s.Headers.PseudoOrder)
 	if s.Identity != nil {

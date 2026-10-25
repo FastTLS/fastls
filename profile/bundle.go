@@ -120,6 +120,14 @@ func ValidateResolution(r Resolution) error {
 		}
 	}
 	if l := r.Legacy; l != nil {
+		if l.SignatureAlgorithms != nil && (len(l.SignatureAlgorithms) == 0 || len(l.SignatureAlgorithms) > 4096) {
+			return fmt.Errorf("%w: invalid legacy signature algorithm list", ErrInvalidProfile)
+		}
+		for _, code := range l.SignatureAlgorithms {
+			if code == 0 {
+				return fmt.Errorf("%w: zero signature algorithm", ErrInvalidProfile)
+			}
+		}
 		if (l.Format != "ja3" && l.Format != "ja4r") || l.Hello == "" || len(l.Hello) > 65536 || strings.ContainsAny(l.Hello, "\r\n\x00") {
 			return fmt.Errorf("%w: malformed legacy definition", ErrInvalidProfile)
 		}
