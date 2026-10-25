@@ -50,7 +50,7 @@ func TestRemoteModulesPerformRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if match.ID == "" || options.Profile == nil {
+	if match.ProfileID == "" || options.Profile == nil {
 		t.Fatal("profile was not applied")
 	}
 	response, err := fastls.NewClient().Do(server.URL, options, http.MethodGet)
