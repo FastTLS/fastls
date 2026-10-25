@@ -99,6 +99,9 @@ def main():
     env.pop("GOFLAGS", None)
     if options.direct:
         env["GOPROXY"] = "direct"
+        # Direct mode validates GitHub's immutable refs rather than the public
+        # proxy/sumdb view, which can retain a negative result after a new tag.
+        env["GONOSUMDB"] = "github.com/FastTLS/*"
 
     with tempfile.TemporaryDirectory(prefix="fastls-external-consumer-") as temporary:
         root = Path(temporary)
