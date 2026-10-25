@@ -3,16 +3,16 @@ module fastls-imitate-integration
 go 1.26.0
 
 require (
-	github.com/FastTLS/fastls v0.1.0-dev.20261023.8
-	github.com/FastTLS/fastls/profile v0.1.0-dev.20261023.8
-	github.com/FastTLS/imitate v0.1.0-dev.20261023.8
+	github.com/FastTLS/fastls v0.1.0-beta.2.0.20261025095315-5afa5965d885
+	github.com/FastTLS/fastls/profile v0.1.0
+	github.com/FastTLS/imitate v0.1.0
 )
 
 require (
-	github.com/FastTLS/ftransport v0.0.0-20261024124928-a1916e4d2523 // indirect
+	github.com/FastTLS/ftransport v0.1.0 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/klauspost/compress v1.18.1 // indirect
+	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.57.1 // indirect
 	github.com/refraction-networking/utls v1.8.2 // indirect

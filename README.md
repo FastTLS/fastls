@@ -4,7 +4,7 @@
 
 Go TLS 指纹请求库，支持自定义 JA3/JA4R、完整 profile.Spec、HTTP 请求头顺序及 HTTP/HTTPS/SOCKS5 代理。浏览器配置由独立 [FastTLS/imitate](https://github.com/FastTLS/imitate) 生成，Fastls 负责应用和发送请求。
 
-当前 v2 为尚未公开发布的开发候选。下列 API 适用于本地开发版本；公共模块安装结果不代表已包含这些修改。
+Fastls v2 的首个正式版为 `v0.1.0`。Go 模块路径保持 `github.com/FastTLS/fastls`；正式源码和版本说明只在 GitHub 发布。
 
 ## 使用
 
@@ -56,8 +56,8 @@ H3 使用 `q` 前缀 JA4R 作为经校验的协议选择器，并支持 `VerifyT
 - [命令行探针源码](integration/imitate/cmd/fastls-probe/main.go)
 - [测试工具](tools/README.md)
 - [独立服务与靶场](services/README.md)
-- [发布前置条件](RELEASE.md)
+- [发布与版本规则](RELEASE.md)
 
 ## 许可证
 
-Fastls 自有代码采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。独立 Go 子模块随附同一许可证。第三方代码和依赖保留原许可证，随附材料及尚待核实的来源见 [第三方声明](THIRD_PARTY_NOTICES.md)；该选择不改变第三方授权或表示正式发布已经完成。
+Fastls 自有代码采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。独立 Go 子模块随附同一许可证。第三方代码和依赖保留原许可证，随附材料和历史来源审计见 [第三方声明](THIRD_PARTY_NOTICES.md)。

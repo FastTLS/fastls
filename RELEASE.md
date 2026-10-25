@@ -1,11 +1,9 @@
-# 发布前置条件
+# 发布与版本规则
 
-当前为未公开发布的 v2 开发候选。旧的单仓打标签脚本已移除；自有代码已采用 Apache-2.0；正式发布仍须完成跨模块版本、第三方来源及随附材料检查。
+Fastls v2 使用 `v0.1.0` 起步，但模块路径保持 `github.com/FastTLS/fastls`，因为 Go 的主版本路径规则不允许在没有 `/v2` 后缀时使用 `v2.0.0` 标签。`profile` 是同仓库的独立模块，使用 `profile/v0.1.0` 形式的标签。
 
-1. 自有代码已采用 Apache-2.0。核对 [第三方声明](THIRD_PARTY_NOTICES.md)、继承来源及二进制实际依赖，补齐各依赖的许可和必要声明；确认是否采用 Go `/v2` 模块路径及下游迁移方式。
-2. 固定 profile、fhttp、fastls 和独立 imitate 的源码版本；profile 子模块的标签需要 `profile/` 前缀。
-3. 运行[开发检查](DEVELOPMENT.md)与跨仓验收，单列未执行项；Linux 交叉编译不等于 Linux 实际运行。
-4. 按依赖顺序发布：profile → fhttp → fastls / imitate，再验证独立消费者与服务。公共 go.mod 不依赖维护者本机 replace，依赖版本应能从远端实际获取。
-5. 审核变更、迁移说明和版本后再提交、推送、打标签和创建 Release。已发布版本保持不可变，修正使用新版本。
+正式链路按 `ftransport → profile → imitate → fastls → 下游服务/SDK` 顺序发布。所有公共 `go.mod` 必须使用可从 GitHub/Go 模块代理获取的不可变版本，不得含本地 `replace`；生产模块图必须拒绝 `github.com/FastTLS/fhttp`。
 
-本地文件代理验收只验证候选源码，不证明远端发布完成。发布操作不属于测试脚本的职责。
+发布前必须运行[开发检查](DEVELOPMENT.md)、独立消费者、许可证材料和下游矩阵。交叉编译不能替代目标平台实际运行。标签和 GitHub Release 保持不可变，修正使用新补丁版本。
+
+正式发布仅使用 GitHub 标签、GitHub Releases 和 GitHub Actions 来源证明；不在 PyPI、npm、容器仓库或其他索引发布。`profile` 标签是 Go 子模块版本，不单独创建面向用户的 GitHub Release。

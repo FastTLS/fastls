@@ -6,18 +6,18 @@ FastTLS 自有代码采用根目录的 Apache-2.0；该选择也适用于本仓�
 
 `third_party/licenses/manifest.json` 记录当前核心包在本机由 Go 实际选择的依赖版本、原始许可文件路径和 SHA-256；[许可目录](third_party/licenses/)按模块路径保留原始文件内容，包含子目录中的独立许可证及 PATENTS 等材料。Go 标准库/运行时的许可证另存于 `third_party/licenses/go/LICENSE`。
 
-此快照包含：
+`v0.1.0` 核心图的快照包含：
 
 - github.com/andybalholm/brotli v1.2.0
 - github.com/gorilla/websocket v1.5.3
-- github.com/klauspost/compress v1.18.1
+- github.com/klauspost/compress v1.18.7
 - github.com/quic-go/qpack v0.6.0
 - github.com/quic-go/quic-go v0.57.1
-- github.com/refraction-networking/utls v1.8.1
-- golang.org/x/crypto v0.41.0
-- golang.org/x/net v0.43.0
-- golang.org/x/sys v0.35.0
-- golang.org/x/text v0.28.0
+- github.com/refraction-networking/utls v1.8.2
+- golang.org/x/crypto v0.58.0
+- golang.org/x/net v0.61.0
+- golang.org/x/sys v0.49.0
+- golang.org/x/text v0.43.0
 - h12.io/socks v1.0.3
 - 构建工具链中的 Go 标准库和运行时许可。
 
@@ -32,11 +32,11 @@ FastTLS 自有代码采用根目录的 Apache-2.0；该选择也适用于本仓�
 
 源头 useflyent、直接上游 Danny-Dasilva，以及相关的 Carcraftz、bogdanfinn、Noooste 分支，在本次固定提交快照的根目录均未发现上述许可材料，GitHub 许可识别为空。pkg.go.dev 对 [Danny-Dasilva/fhttp](https://pkg.go.dev/github.com/Danny-Dasilva/fhttp) 和 [useflyent/fhttp](https://pkg.go.dev/github.com/useflyent/fhttp) 也显示未识别到许可。自动识别结果仅为辅助证据：未识别不等于证明不存在授权；同样，保留 Go 文件头也不足以由本项目单方面确认所有后续贡献的许可范围。文件计数不是逐文件授权认证，带 Go 版权头的文件中也可能包含后续修改。
 
-因此，本次没有把整个 fhttp 标为 BSD 或 Apache-2.0，也没有用其他下游项目的许可证替代其自身授权。正式分发前仍须取得涵盖继承贡献的上游明确许可确认，或替换授权范围未明的实现；仅补一份 LICENSE 文本不能消除这项不确定性。没有向上游作者发送消息或提交 issue。
+因此，历史审计没有把整个 fhttp 标为 BSD 或 Apache-2.0，也没有用其他下游项目的许可证替代其自身授权。当前 `v0.1.0` 已用独立 `ftransport` 替换该后端；源码、生产模块图和正式下游产物均不包含 `github.com/FastTLS/fhttp`，所以本次不分发上述授权范围未明的 fhttp 实现。证据文件继续保留，用于解释旧分支和迁移边界；这不改变 fhttp 自身仍需上游许可确认的结论。
 
 ## 下游二进制与独立模块
 
 - 分发包含本项目代码的动态库、wheel、npm 包或程序时，随附本项目 LICENSE/NOTICE，以及实际打入产物的依赖所要求的许可和声明；仅有仓库链接不能替代要求随附的文本。
 - 独立 Go 子模块分别携带完整 LICENSE/NOTICE。它们的依赖仍依各自原许可分发，不因模块目录中出现 Apache-2.0 而被重新授权。
 - 本次只落实 fastls 仓库及其子模块的许可。独立的 imitate、FFI 和其他 SDK 仓库须分别处理自己的许可和打包元数据，不能仅因依赖 fastls 就宣称这些仓库已经完成许可配置。
-- 在未完成依赖来源核对、版本发布和实际产物随附检查前，保持现有开发候选状态；本次不创建正式 Release 或发布模块标签。
+- `v0.1.0` 的正式产物由各下游 GitHub Actions 按实际生产依赖图生成并随附许可证、摘要和来源证明；不向 GitHub 之外的渠道发布。

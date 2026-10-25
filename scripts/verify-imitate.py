@@ -19,8 +19,8 @@ import xml.etree.ElementTree as ET
 
 CORE = Path(__file__).resolve().parents[1]
 ROOT = CORE.parent
-VERSION = "v0.1.0-dev.20261023.8"
-FTRANSPORT_VERSION = "v0.0.0-20261024124928-a1916e4d2523"
+VERSION = "v0.1.0"
+FTRANSPORT_VERSION = "v0.1.0"
 MODULES = {"fastls/profile": "github.com/FastTLS/fastls/profile", "ftransport": "github.com/FastTLS/ftransport", "fastls": "github.com/FastTLS/fastls", "imitate": "github.com/FastTLS/imitate"}
 VERSIONS = {module: FTRANSPORT_VERSION if relative == "ftransport" else VERSION for relative, module in MODULES.items()}
 ACTIVE_OUT = None
@@ -197,8 +197,8 @@ case "library/fastls/2/any/unsupported-demo":
  s=library.FastlsPortable(false);s.ID=r.Selector;s.Metadata.Variant="unsupported-demo";s.Capabilities.RequiredFeatures=append(s.Capabilities.RequiredFeatures,"future.algorithm.v99")
 ''', 1)
     native.write_text(text, encoding="utf-8")
-    provider = variant / "provider.go"; provider.write_text(provider.read_text(encoding="utf-8").replace('Version = "0.1.0-dev.20261023.8"', 'Version = "0.1.0-dev.20261023.8.1"'), encoding="utf-8")
-    version_b = VERSION + ".1"
+    provider = variant / "provider.go"; provider.write_text(provider.read_text(encoding="utf-8").replace('Version = "0.1.0"', 'Version = "0.1.1-dev"'), encoding="utf-8")
+    version_b = "v0.1.1"
     pack(variant, "github.com/FastTLS/imitate", version_b, out / "proxy")
     probe = work / "upgrade-probe"; probe.mkdir(exist_ok=True)
     (probe / "main.go").write_text('''package main

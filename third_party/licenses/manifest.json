@@ -1,5 +1,5 @@
 {
-  "scope": "Core host-selected dependency notice snapshot. Known Go-origin BSD text for FastTLS/fhttp is included; authorization scope for independent fhttp additions remains unresolved. Not a complete binary-distribution approval.",
+  "scope": "Fastls v0.1.0 core host-selected dependency notice snapshot. Historical fhttp evidence is retained separately; fhttp is not in the current production module graph.",
   "apache_source": "https://www.apache.org/licenses/LICENSE-2.0.txt",
   "apache_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
   "dependencies": [
@@ -27,7 +27,7 @@
     },
     {
       "module": "github.com/klauspost/compress",
-      "version": "v1.18.1",
+      "version": "v1.18.7",
       "files": [
         {
           "path": "third_party/licenses/github.com/klauspost/compress/gzhttp/LICENSE",
@@ -105,7 +105,7 @@
     },
     {
       "module": "github.com/refraction-networking/utls",
-      "version": "v1.8.1",
+      "version": "v1.8.2",
       "files": [
         {
           "path": "third_party/licenses/github.com/refraction-networking/utls/dicttls/LICENSE",
@@ -121,7 +121,7 @@
     },
     {
       "module": "golang.org/x/crypto",
-      "version": "v0.41.0",
+      "version": "v0.58.0",
       "files": [
         {
           "path": "third_party/licenses/golang.org/x/crypto/LICENSE",
@@ -137,7 +137,7 @@
     },
     {
       "module": "golang.org/x/net",
-      "version": "v0.43.0",
+      "version": "v0.61.0",
       "files": [
         {
           "path": "third_party/licenses/golang.org/x/net/LICENSE",
@@ -153,7 +153,7 @@
     },
     {
       "module": "golang.org/x/sys",
-      "version": "v0.35.0",
+      "version": "v0.49.0",
       "files": [
         {
           "path": "third_party/licenses/golang.org/x/sys/LICENSE",
@@ -169,7 +169,7 @@
     },
     {
       "module": "golang.org/x/text",
-      "version": "v0.28.0",
+      "version": "v0.43.0",
       "files": [
         {
           "path": "third_party/licenses/golang.org/x/text/LICENSE",
@@ -202,20 +202,6 @@
           "path": "third_party/licenses/go/LICENSE",
           "upstream_path": "LICENSE",
           "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
-        }
-      ]
-    },
-    {
-      "module": "github.com/FastTLS/fhttp",
-      "version": "e027ce786984d3e7e831b0d10c54875dec746b35",
-      "license_scope": "Go-origin portions only",
-      "status": "partial; independent fhttp additions unresolved",
-      "files": [
-        {
-          "path": "third_party/licenses/fhttp-go-origin/Go-BSD-3-Clause",
-          "upstream_path": "vendor/golang.org/x/net/LICENSE",
-          "upstream_commit": "f2903183edbd3bcf43b6b2e89e0ebfb086216bf9",
-          "sha256": "2d36597f7117c38b006835ae7f537487207d8ec407aa9d9980794b2030cbc067"
         }
       ]
     }

@@ -42,7 +42,7 @@ def main():
             assert name in source.namelist(), "source archive lacks " + name
             assert source.read(name).replace(b"\r\n", b"\n") == (ROOT / name).read_bytes().replace(b"\r\n", b"\n"), name
     print(f"License materials passed: {len(modules)} Go modules, {len(manifest['dependencies'])} notice sources, source archive included.")
-    print("Go-origin fhttp BSD text is verified; the grant for fhttp-specific contributions remains unconfirmed. This check is not release approval.")
+    print("Historical fhttp evidence is retained; the current production module graph and release source exclude fhttp.")
 
 
 if __name__ == "__main__":

@@ -28,8 +28,7 @@ H3 的 `q` JA4R 是经过语法校验的协议选择器，不代表标准 Go QUI
 
 ## 依赖与构建
 
-正式模块不包含本地 `replace`。发布 ftransport 后，应把 `go.mod` 中的候选
-版本替换为该审阅提交对应的不可变版本。开发工作区通过被忽略的 `go.work`
+正式模块不包含本地 `replace`，并固定到 `ftransport v0.1.0`。开发工作区通过被忽略的 `go.work`
 绑定本地 ftransport、profile 与 imitate。以下检查必须保持不含 fhttp：
 
 ```shell

@@ -4,7 +4,7 @@ English · [中文](README.md)
 
 A Go request library for custom JA3/JA4R fingerprints, complete profile.Spec execution, ordered HTTP headers, and HTTP/HTTPS/SOCKS5 proxies. The optional [FastTLS/imitate](https://github.com/FastTLS/imitate) library generates browser configurations; Fastls applies them and sends requests.
 
-The current v2 worktree is an unpublished development candidate. Public module installation does not establish availability of these changes.
+The first stable Fastls v2 release is `v0.1.0`. The Go module path remains `github.com/FastTLS/fastls`; official source and release notes are published only on GitHub.
 
 ## Usage
 
@@ -56,8 +56,8 @@ H3 accepts a q-prefixed JA4R value as a validated protocol selector and honors `
 - [Command-line probe source](integration/imitate/cmd/fastls-probe/main.go)
 - [Test tools](tools/README.md)
 - [Independent services and lab](services/README.md)
-- [Release prerequisites](RELEASE.md)
+- [Release and version policy](RELEASE.md)
 
 ## License
 
-FastTLS-authored Fastls code is licensed under the [Apache License 2.0](LICENSE); see [NOTICE](NOTICE). Independent Go submodules carry the same license. Third-party code and dependencies retain their original terms; see [third-party notices and remaining provenance checks](THIRD_PARTY_NOTICES.md). This license selection does not relicense third-party works or constitute release approval.
+FastTLS-authored Fastls code is licensed under the [Apache License 2.0](LICENSE); see [NOTICE](NOTICE). Independent Go submodules carry the same license. Third-party code and dependencies retain their original terms; see the [third-party notices and historical provenance audit](THIRD_PARTY_NOTICES.md).
