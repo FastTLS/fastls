@@ -101,6 +101,7 @@ func (s *Session) DoContext(ctx context.Context, url string, request RequestOpti
 	}
 	opts := s.options
 	opts.URL, opts.Method, opts.Body = url, method, request.Body
+	opts.Trailers = request.Trailers
 	opts.Headers = maps.Clone(s.options.Headers)
 	if opts.Headers == nil {
 		opts.Headers = make(map[string]string)
@@ -154,9 +155,6 @@ func (s *Session) DoContext(ctx context.Context, url string, request RequestOpti
 		if !request.Duplex {
 			defer stopBody()
 		}
-	}
-	if request.Trailers != nil {
-		prepared.req.Trailer = request.Trailers.Clone()
 	}
 	response, err := dispatcher(prepared)
 	if err != nil {

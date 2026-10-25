@@ -83,49 +83,54 @@ func TestExplicitHostAndDuplicateHostValidation(t *testing.T) {
 
 func TestRequestAndResponseTrailersHTTP1AndHTTP2(t *testing.T) {
 	for _, protocol := range []string{"http1", "http2"} {
-		t.Run(protocol, func(t *testing.T) {
-			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				body, _ := io.ReadAll(r.Body)
-				w.Header().Set("Trailer", "X-Response-Trailer")
-				fmt.Fprintf(w, "%s|%s", body, r.Trailer.Get("X-Request-Trailer"))
-				w.Header().Set("X-Response-Trailer", "response-value")
-			}))
-			if protocol == "http2" {
-				server.EnableHTTP2 = true
-				server.StartTLS()
-			} else {
-				server.Start()
-			}
-			defer server.Close()
+		for _, bodyMode := range []string{"buffered", "reader"} {
+			t.Run(protocol+"/"+bodyMode, func(t *testing.T) {
+				server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					body, _ := io.ReadAll(r.Body)
+					w.Header().Set("Trailer", "X-Response-Trailer")
+					fmt.Fprintf(w, "%s|%s", body, r.Trailer.Get("X-Request-Trailer"))
+					w.Header().Set("X-Response-Trailer", "response-value")
+				}))
+				if protocol == "http2" {
+					server.EnableHTTP2 = true
+					server.StartTLS()
+				} else {
+					server.Start()
+				}
+				defer server.Close()
 
-			session, err := NewSession(Options{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer session.Close()
-			response, err := session.DoContext(context.Background(), server.URL, RequestOptions{
-				BodyReader: io.NopCloser(strings.NewReader("payload")),
-				Trailers:   http.Header{"X-Request-Trailer": {"request-value"}},
-			}, "POST")
-			if err != nil {
-				t.Fatal(err)
-			}
-			body, err := io.ReadAll(response.Body)
-			response.Body.Close()
-			if err != nil {
-				t.Fatal(err)
-			}
-			if string(body) != "payload|request-value" || response.Trailer.Get("X-Response-Trailer") != "response-value" {
-				t.Fatalf("body/trailer = %q/%q", body, response.Trailer.Get("X-Response-Trailer"))
-			}
-			wantProtocol := "HTTP/1.1"
-			if protocol == "http2" {
-				wantProtocol = "HTTP/2.0"
-			}
-			if response.Protocol != wantProtocol {
-				t.Fatalf("protocol = %q, want %q", response.Protocol, wantProtocol)
-			}
-		})
+				session, err := NewSession(Options{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer session.Close()
+				request := RequestOptions{Trailers: http.Header{"X-Request-Trailer": {"request-value"}}}
+				if bodyMode == "reader" {
+					request.BodyReader = io.NopCloser(strings.NewReader("payload"))
+				} else {
+					request.Body = "payload"
+				}
+				response, err := session.DoContext(context.Background(), server.URL, request, "POST")
+				if err != nil {
+					t.Fatal(err)
+				}
+				body, err := io.ReadAll(response.Body)
+				response.Body.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if string(body) != "payload|request-value" || response.Trailer.Get("X-Response-Trailer") != "response-value" {
+					t.Fatalf("body/trailer = %q/%q", body, response.Trailer.Get("X-Response-Trailer"))
+				}
+				wantProtocol := "HTTP/1.1"
+				if protocol == "http2" {
+					wantProtocol = "HTTP/2.0"
+				}
+				if response.Protocol != wantProtocol {
+					t.Fatalf("protocol = %q, want %q", response.Protocol, wantProtocol)
+				}
+			})
+		}
 	}
 }
 
