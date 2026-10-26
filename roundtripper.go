@@ -25,6 +25,7 @@ type duplexKey struct{}
 
 type roundTripper struct {
 	HTTPVersion                    HTTPVersion
+	AddressPolicy                  *AddressPolicy
 	KeepAlive                      bool
 	Lifetime                       context.Context
 	ProxyConfigured                bool
@@ -49,14 +50,30 @@ type roundTripper struct {
 }
 
 func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	dispatched := false
+	defer func() {
+		// A failure before handing the request to ftransport still owns the
+		// upload body and must unblock a streaming producer.
+		if !dispatched && req != nil && req.Body != nil {
+			req.Body.Close()
+		}
+	}()
 	if req == nil || req.URL == nil {
 		return nil, errors.New("fastls: nil request or URL")
 	}
 	if rt.HTTPVersion == HTTPVersion3 && req.URL.Scheme != "https" {
-		if req.Body != nil {
-			_ = req.Body.Close()
-		}
 		return nil, errors.New("fastls: forced HTTP/3 requires an https URL on every redirect hop")
+	}
+	if rt.AddressPolicy != nil {
+		if rt.ProxyConfigured {
+			return nil, addressDenied("proxy_unsupported")
+		}
+		if rt.HTTPVersion == HTTPVersion3 || rt.Fingerprint != nil && !rt.Fingerprint.IsEmpty() && strings.HasPrefix(rt.Fingerprint.Value(), "q") {
+			return nil, addressDenied("http3_unsupported")
+		}
+		if err := rt.AddressPolicy.checkRequest(req); err != nil {
+			return nil, err
+		}
 	}
 	req = req.Clone(req.Context())
 	for _, properties := range rt.Cookies {
@@ -89,6 +106,7 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 			return nil, err
 		}
 	}
+	dispatched = true
 	response, err := transport.RoundTrip(req)
 	if err != nil && req.Context().Err() != nil {
 		// net/http may keep a dial running after its initiating request is
@@ -357,10 +375,14 @@ func newRoundTripper(browser browser, dialers ...proxy.ContextDialer) http.Round
 	if len(dialers) > 0 && dialers[0] != nil {
 		dialer = dialers[0]
 	}
+	if browser.AddressPolicy != nil {
+		dialer = browser.AddressPolicy
+	}
 	return &roundTripper{
 		HTTPVersion: browser.HTTPVersion,
 		KeepAlive:   browser.KeepAlive, Lifetime: browser.Lifetime, ProxyConfigured: browser.ProxyConfigured,
-		VerifyTLS: browser.VerifyTLS, TLSRootCAs: browser.TLSRootCAs,
+		AddressPolicy: browser.AddressPolicy,
+		VerifyTLS:     browser.VerifyTLS, TLSRootCAs: browser.TLSRootCAs,
 		Profile: browser.Profile, Fingerprint: browser.Fingerprint,
 		UserAgent: browser.UserAgent, FingerprintUserAgent: browser.FingerprintUserAgent,
 		FingerprintSignatureAlgorithms: append([]uint16(nil), browser.FingerprintSignatureAlgorithms...),

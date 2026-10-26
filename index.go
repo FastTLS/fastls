@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/FastTLS/fastls/profile"
 	"io"
@@ -20,7 +21,10 @@ import (
 // Options 设置 Fastls 客户端选项
 type Options struct {
 	// HTTPVersion3 requires H3 on every hop; zero preserves existing selection.
-	HTTPVersion                    HTTPVersion `json:"httpVersion,omitempty"`
+	HTTPVersion HTTPVersion `json:"httpVersion,omitempty"`
+	// AddressPolicy is an optional, immutable direct HTTP destination policy.
+	// It cannot be supplied through request JSON. Nil preserves existing behavior.
+	AddressPolicy                  *AddressPolicy `json:"-"`
 	reuseConnections               bool
 	lifetime                       context.Context
 	FingerprintUserAgent           string              `json:"-"` // Protocol parser identity; request headers never change it.
@@ -95,6 +99,7 @@ func (re Response) JSONBody() (map[string]interface{}, error) {
 
 // Fastls 创建完整的请求和响应
 type Fastls struct {
+	addressPolicy *AddressPolicy
 }
 
 // processRequest 创建并准备请求上下文
@@ -118,6 +123,14 @@ func processRequest(options *Options, shared ...http.Client) (*requestContext, e
 	if err := options.ValidateFingerprint(); err != nil {
 		return nil, fmt.Errorf("指纹验证失败: %w", err)
 	}
+	if options.AddressPolicy != nil {
+		if options.Proxy != "" {
+			return nil, addressDenied("proxy_unsupported")
+		}
+		if options.HTTPVersion == HTTPVersion3 || options.Fingerprint != nil && !options.Fingerprint.IsEmpty() && strings.HasPrefix(options.Fingerprint.Value(), "q") {
+			return nil, addressDenied("http3_unsupported")
+		}
+	}
 
 	// 如果 HTTP2SettingsString 不为空，则解析并覆盖 HTTP2Settings 和 PHeaderOrderKeys
 	if options.HTTP2SettingsString != "" {
@@ -138,6 +151,7 @@ func processRequest(options *Options, shared ...http.Client) (*requestContext, e
 
 	var browser = browser{
 		HTTPVersion:                    options.HTTPVersion,
+		AddressPolicy:                  options.AddressPolicy,
 		KeepAlive:                      options.reuseConnections,
 		Lifetime:                       options.lifetime,
 		ProxyConfigured:                options.Proxy != "",
@@ -279,6 +293,11 @@ func (client Fastls) DoContext(ctx context.Context, URL string, options Options,
 	}
 	options.URL = URL
 	options.Method = Method
+	if client.addressPolicy != nil {
+		// A trusted client-level policy cannot be cleared or replaced by a
+		// request's Options, including options assembled from an RPC DTO.
+		options.AddressPolicy = client.addressPolicy
+	}
 
 	reqCtx, err := processRequest(&options)
 	if err != nil {
@@ -288,7 +307,12 @@ func (client Fastls) DoContext(ctx context.Context, URL string, options Options,
 
 	response, err = dispatcher(reqCtx)
 	if err != nil {
-		log.Print("Request Failed: " + err.Error())
+		var denied *AddressPolicyError
+		if errors.As(err, &denied) {
+			log.Print("Request Failed: " + denied.Error())
+		} else {
+			log.Print("Request Failed: " + err.Error())
+		}
 		return response, err
 	}
 

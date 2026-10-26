@@ -22,6 +22,9 @@ import (
 // header order; this is deliberately not an exact HTTP/2/browser fingerprint.
 // Compression, redirects, HTTP/2 CONNECT and environment proxies are disabled.
 func DialWebSocketContext(ctx context.Context, endpoint string, options Options, protocols []string) (*websocket.Conn, *http.Response, error) {
+	if options.AddressPolicy != nil {
+		return nil, nil, addressDenied("websocket_unsupported")
+	}
 	if ctx == nil {
 		return nil, nil, errors.New("nil WebSocket context")
 	}

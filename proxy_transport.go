@@ -60,6 +60,9 @@ func parseTunnelProxy(raw string) (*url.URL, error) {
 		}
 	}
 	u.Host = net.JoinHostPort(u.Hostname(), port)
+	if _, _, err := net.SplitHostPort(u.Host); err != nil {
+		return nil, errors.New("invalid proxy host")
+	}
 	u.Path, u.RawPath = "", ""
 	return u, nil
 }

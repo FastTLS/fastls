@@ -13,13 +13,22 @@ import (
 	"github.com/FastTLS/fastls/profile"
 )
 
+// ErrSessionClosed identifies requests interrupted or rejected by Session.Close.
+// It also matches context.Canceled for existing cancellation-aware callers.
+var ErrSessionClosed error = sessionClosedError{}
+
+type sessionClosedError struct{}
+
+func (sessionClosedError) Error() string { return "session is closed" }
+func (sessionClosedError) Unwrap() error { return context.Canceled }
+
 // Session owns reusable connections for a fixed transport configuration.
 // It is safe for concurrent requests. Close cancels active bodies and prevents new requests.
 type Session struct {
 	options Options
 	client  http.Client
 	ctx     context.Context
-	cancel  context.CancelFunc
+	cancel  context.CancelCauseFunc
 	once    sync.Once
 }
 
@@ -59,13 +68,13 @@ func NewSession(options Options) (*Session, error) {
 	if options.ProxyTLSRootCAs != nil {
 		options.ProxyTLSRootCAs = options.ProxyTLSRootCAs.Clone()
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancelCause(context.Background())
 	options.reuseConnections, options.lifetime = true, ctx
 	// Prepare and validate the fixed profile once, without making a network request.
 	options.URL, options.Method = "https://localhost/", "GET"
 	prepared, err := processRequest(&options)
 	if err != nil {
-		cancel()
+		cancel(nil)
 		return nil, err
 	}
 	prepared.client.Timeout = 0 // Each request's context owns its total deadline.
@@ -88,13 +97,13 @@ func (s *Session) DoContext(ctx context.Context, url string, request RequestOpti
 		return Response{}, errors.New("nil request context")
 	}
 	if s.ctx.Err() != nil {
-		return Response{}, errors.New("session is closed")
+		return Response{}, ErrSessionClosed
 	}
-	ctx, cancel := context.WithCancel(ctx)
-	stop := context.AfterFunc(s.ctx, cancel)
+	ctx, cancel := context.WithCancelCause(ctx)
+	stop := context.AfterFunc(s.ctx, func() { cancel(ErrSessionClosed) })
 	release := func() {
 		stop()
-		cancel()
+		cancel(nil)
 		if s.ctx.Err() != nil {
 			s.client.CloseIdleConnections()
 		}
@@ -161,6 +170,9 @@ func (s *Session) DoContext(ctx context.Context, url string, request RequestOpti
 		if response.Body != nil {
 			response.Body.Close()
 		}
+		if s.ctx.Err() != nil {
+			err = errors.Join(ErrSessionClosed, err)
+		}
 		release()
 		return response, err
 	}
@@ -171,7 +183,7 @@ func (s *Session) DoContext(ctx context.Context, url string, request RequestOpti
 			return Response{}, err
 		}
 	}
-	response.Body = &sessionBody{ReadCloser: response.Body, release: release}
+	response.Body = &sessionBody{ReadCloser: response.Body, release: release, session: s.ctx}
 	return response, nil
 }
 
@@ -179,11 +191,15 @@ type sessionBody struct {
 	io.ReadCloser
 	once    sync.Once
 	release func()
+	session context.Context
 }
 
 func (b *sessionBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
 	if err != nil {
+		if err != io.EOF && b.session != nil && b.session.Err() != nil {
+			err = errors.Join(ErrSessionClosed, err)
+		}
 		b.once.Do(b.release)
 	}
 	return n, err
@@ -195,4 +211,6 @@ func (b *sessionBody) Close() error {
 }
 
 func (s *Session) CloseIdleConnections() { s.client.CloseIdleConnections() }
-func (s *Session) Close()                { s.once.Do(func() { s.cancel(); s.client.CloseIdleConnections() }) }
+func (s *Session) Close() {
+	s.once.Do(func() { s.cancel(ErrSessionClosed); s.client.CloseIdleConnections() })
+}

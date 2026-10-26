@@ -16,6 +16,7 @@ import (
 
 type browser struct {
 	HTTPVersion                    HTTPVersion
+	AddressPolicy                  *AddressPolicy
 	KeepAlive                      bool
 	Lifetime                       context.Context
 	ProxyConfigured                bool
