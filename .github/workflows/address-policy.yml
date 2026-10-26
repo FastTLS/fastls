@@ -56,7 +56,7 @@ jobs:
         run: go test -run '^$' -fuzz '^FuzzAddressPolicyOrigin$' -fuzztime 20s .
       - name: Retain failing parser inputs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: address-policy-${{ matrix.os }}-go${{ matrix.go }}
           path: |
