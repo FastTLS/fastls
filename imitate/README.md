@@ -31,4 +31,4 @@ Apply(&options, spec)、Options.Profile、自定义 JA3/JA4R 都不要求独立�
 
 协议解析身份与实际请求 UA 分离：FingerprintUserAgent 供后端固定解析使用，请不要将它当作业务 UA 修改。Match 产品/版本/平台描述选中的配置，Match.UserAgent 是 Use 当时的值。
 
-开发与验收方式见 [开发说明](../DEVELOPMENT.md)。当前仅为尚未公开发布的本地候选。
+开发与验收方式见 [开发说明](../DEVELOPMENT.md)。稳定核心已发布 v0.1.1；本文包含源码分支的配置约定，安装旧标签时须核对对应实现与生成器版本。

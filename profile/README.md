@@ -14,7 +14,7 @@
 
 先前未发布的产品查询函数 LookupLegacy、LegacyJA4R、LookupBuiltinSelection、LookupCompatibilitySelection 等已移入独立生成器 internal/catalog；它们不再属于共享规范。应用改用独立 imitate.New().Resolve/List/Export；核心已删除历史浏览器公开预设及冻结目录，Use 需要显式 Provider。产品数据变更不会触及本模块。
 
-规范 schema 为1，接口版本为1，候选版本尚未公开发布。发布子目录时使用 `profile/v...` 标签。根库 `go test ./...` 不包含本模块，必须独立执行 `go test ./...`；跨仓验收入口为核心 scripts/verify-imitate.py。
+规范 schema 为1，接口版本为1，已发布 profile/v0.1.0；后续源码字段不代表旧标签自动具备。发布子目录时使用 `profile/v...` 标签。根库 `go test ./...` 不包含本模块，必须独立执行 `go test ./...`；跨仓验收入口为核心 scripts/verify-imitate.py。
 
 2026-10-23 v2 规则更新：官方 Provider 不再读取 ResolveRequest.UserAgent 进行选择或校验，用户覆盖通过 Options 完成。Registry 不再自动生成旧平台/版本顺序别名。HeaderPolicy 是配置默认值，Fastls 最后应用用户请求头，因此任何生成规则都不能覆盖用户明确传入的值。LegacyUAFirst 已停用。自定义目录可显式登记自己的别名，但官方导出不携带历史别名。
 

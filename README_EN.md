@@ -1,63 +1,70 @@
 # Fastls
 
-English · [中文](README.md)
+[中文](README.md) · [Documentation](https://fasttls.github.io/fastls/)
 
-A Go request library for custom JA3/JA4R fingerprints, complete profile.Spec execution, ordered HTTP headers, and HTTP/HTTPS/SOCKS5 proxies. The optional [FastTLS/imitate](https://github.com/FastTLS/imitate) library generates browser configurations; Fastls applies them and sends requests.
+Go HTTP client with configurable TLS/HTTP fingerprints, ordered headers, browser profiles, JA3/JA4R and complete profile.Spec support. Stable core: `v0.1.1`; module path: `github.com/FastTLS/fastls` (no `/v2`). Requires Go 1.26+.
 
-The first stable Fastls v2 release is `v0.1.0`. The Go module path remains `github.com/FastTLS/fastls`; official source and release notes are published only on GitHub.
+```sh
+go get github.com/FastTLS/fastls@v0.1.1
+go get github.com/FastTLS/imitate@v0.1.0
+```
 
-## Usage
+## Complete example
 
 ```go
+package main
+
 import (
     "context"
+    "fmt"
     "io"
+    "log"
+    "time"
 
     fastls "github.com/FastTLS/fastls"
     "github.com/FastTLS/fastls/imitate"
     generators "github.com/FastTLS/imitate"
 )
 
-var fingerprints = generators.New() // Safe to share between requests.
-
-func fetch(ctx context.Context, target string) ([]byte, error) {
+func main() {
     options := fastls.Options{
-        FingerprintProvider: fingerprints,
-        Headers: map[string]string{"User-Agent": "my-client/1.0"},
-        Timeout: 15,
+        FingerprintProvider: generators.New(),
+        VerifyTLS: true,
     }
     if _, err := imitate.Use(&options, "chrome/156/windows"); err != nil {
-        return nil, err
+        log.Fatal(err)
     }
-    resp, err := fastls.NewClient().DoContext(ctx, target, options, "GET")
+    if err := fetch(options); err != nil {
+        log.Fatal(err)
+    }
+}
+
+func fetch(options fastls.Options) error {
+    session, err := fastls.NewSession(options)
+    if err != nil { return err }
+    defer session.Close()
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+    response, err := session.DoContext(ctx, "https://example.com/", fastls.RequestOptions{}, "GET")
     if err != nil {
-        if resp.Body != nil {
-            resp.Body.Close()
-        }
-        return nil, err
+        if response.Body != nil { response.Body.Close() }
+        return err
     }
-    defer resp.Client.CloseIdleConnections()
-    defer resp.Body.Close()
-    return io.ReadAll(resp.Body)
+    defer response.Body.Close()
+    fmt.Println(response.Status, response.Protocol, response.FinalURL)
+    _, err = io.Copy(io.Discard, response.Body)
+    return err
 }
 ```
 
-`Use` requires an explicit Provider. Caller header values override generated defaults. Downstream adapters handle legacy names and UA inference. Custom JA3/JA4R, `imitate.Apply`, and `Options.Profile` work without a generator. Consult the provider's List, Match and evidence for supported IDs and verification coverage; generating a version identity does not verify a real browser's complete fingerprint.
+## Capabilities and limits
 
-Close response bodies after use. Requests without a fingerprint return after response headers arrive; cancellation, timeouts and network errors can occur while reading Body. Complete Spec execution supports HTTP1/HTTP2. One-shot requests and `Session` support request trailers; `Session` also supports streaming uploads, H2 duplex, phase timeouts, and opt-in content decoding. Response trailers are complete after EOF, and responses report the final protocol and post-redirect URL.
+HTTP/1.1 and HTTP/2, profiles, JA3/JA4R, ordered headers, cookies, HTTP/HTTPS CONNECT and SOCKS5 proxies, reusable sessions, streaming, cancellation, phase timeouts, trailers, decoding and H2 duplex are supported. Close response bodies and sessions. Read errors can occur after headers arrive. Session total deadlines come from the request context, not Options.Timeout.
 
-H3 accepts a q-prefixed JA4R value as a validated protocol selector and honors `VerifyTLS` and `TLSRootCAs`. Go's standard QUIC TLS stack cannot reproduce arbitrary ClientHello extension order, so this is not a claim of complete browser H3 fingerprint fidelity. H3 explicitly rejects configured proxies instead of silently connecting directly. WS/WSS uses HTTP/1.1 Upgrade; arbitrary Upgrade header order, compression, redirects, and HTTP/2 Extended CONNECT are outside the current scope. Cancellation during subsequent H2 dialing remains a bounded capability; see the integration notes.
+Explicitly enable `VerifyTLS: true` for fingerprinted Go TCP TLS requests; the historical zero value does not verify certificates. Python and Node SDKs verify by default. Complete Spec support covers H1/H2. HTTP/3 cannot reproduce arbitrary ClientHello ordering and rejects proxies. WS/WSS uses HTTP/1.1 Upgrade; compression, arbitrary Upgrade header order, redirects and H2/H3 Extended CONNECT are unsupported. Browser identities are configuration labels, not full-browser equivalence or vendor certification. This library does not execute page JavaScript or handle CAPTCHAs. Unreleased development changes are not stable-release guarantees.
 
-## Documentation and tools
+## Documentation, license and disclaimer
 
-- [Fingerprint application, offline registration and capability limits](imitate/README.md)
-- [Development, tests and directory guide](DEVELOPMENT.md)
-- [Shared profile specification](profile/README.md)
-- [Command-line probe source](integration/imitate/cmd/fastls-probe/main.go)
-- [Test tools](tools/README.md)
-- [Independent services and lab](services/README.md)
-- [Release and version policy](RELEASE.md)
+See the [Chinese README](README.md), [fingerprint guide](imitate/README.md), [development guide](DEVELOPMENT.md), [release policy](RELEASE.md) and [issues](https://github.com/FastTLS/fastls/issues). Remove credentials and personal data before sharing examples.
 
-## License
-
-FastTLS-authored Fastls code is licensed under the [Apache License 2.0](LICENSE); see [NOTICE](NOTICE). Independent Go submodules carry the same license. Third-party code and dependencies retain their original terms; see the [third-party notices and historical provenance audit](THIRD_PARTY_NOTICES.md).
+FastTLS-owned code is [Apache-2.0](LICENSE); retain [NOTICE](NOTICE) and [third-party notices](THIRD_PARTY_NOTICES.md). Use only systems and data you are authorized to access and follow applicable laws and service terms. Provided as-is under the license, without guarantees of availability, anonymity, browser equivalence or acceptance by third-party services. Browser names do not imply affiliation. The license and applicable law govern warranty and liability; this notice does not change license rights.
