@@ -259,7 +259,7 @@ cd ../../../fastls-mitm
 ./fastls-mitm -addr :8888
 
 # 启动 HTTP 靶场服务器
-cd ../../tools/fastls-target
+cd ../fastls/tools/fastls-target
 ./fastls-target -addr :8080
 
 # 通过代理测试 HTTP

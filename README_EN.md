@@ -1,6 +1,6 @@
 # Fastls
 
-[中文](README.md) · [Documentation](https://fasttls.github.io/fastls/)
+[中文](README.md) · [Documentation](https://fasttls.github.io/en/fastls/)
 
 Go HTTP client with configurable TLS/HTTP fingerprints, ordered headers, browser profiles, JA3/JA4R and complete profile.Spec support. Stable core: `v0.1.1`; module path: `github.com/FastTLS/fastls` (no `/v2`). Requires Go 1.26+.
 

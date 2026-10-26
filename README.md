@@ -1,5 +1,7 @@
 # Fastls
 
+[English documentation](https://fasttls.github.io/en/fastls/)
+
 [English](README_EN.md) · [完整文档](https://fasttls.github.io/fastls/)
 
 Go HTTP 客户端库，用于选择浏览器网络配置、自定义 JA3/JA4R 或完整 profile.Spec，发送具有指定 TLS/HTTP 参数及头部顺序的请求。Python、Node 用户请直接使用 [SDK](https://github.com/FastTLS/fastls-ffi)。
