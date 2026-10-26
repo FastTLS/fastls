@@ -1,0 +1,66 @@
+name: Address policy contract
+
+on:
+  push:
+    paths:
+      - '*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'testdata/fuzz/FuzzAddressPolicyAuthority/**'
+      - 'testdata/fuzz/FuzzAddressPolicyJSON/**'
+      - 'testdata/fuzz/FuzzAddressPolicyOrigin/**'
+      - '.github/workflows/address-policy.yml'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: ${{ matrix.os }} / Go ${{ matrix.go }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022, macos-15]
+        go: ['1.26.10', '1.27.3']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      GOWORK: 'off'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: Verify public dependencies
+        run: go mod verify
+      - name: Address policy and retained fuzz regressions
+        run: go test -count=1 -timeout 120s -run '^TestAddressPolicy|^FuzzAddressPolicy' .
+      - name: Static checks
+        run: go vet ./...
+      - name: Race regression
+        if: runner.os == 'Linux'
+        run: go test -race -count=1 -timeout 120s -run '^TestAddressPolicy' .
+      - name: Authority parser fuzz
+        if: runner.os == 'Linux' && matrix.go == '1.27.3'
+        run: go test -run '^$' -fuzz '^FuzzAddressPolicyAuthority$' -fuzztime 20s .
+      - name: Operator JSON fuzz
+        if: runner.os == 'Linux' && matrix.go == '1.27.3'
+        run: go test -run '^$' -fuzz '^FuzzAddressPolicyJSON$' -fuzztime 20s .
+      - name: Expected origin fuzz
+        if: runner.os == 'Linux' && matrix.go == '1.27.3'
+        run: go test -run '^$' -fuzz '^FuzzAddressPolicyOrigin$' -fuzztime 20s .
+      - name: Retain failing parser inputs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: address-policy-${{ matrix.os }}-go${{ matrix.go }}
+          path: |
+            testdata/fuzz/FuzzAddressPolicyAuthority/**
+            testdata/fuzz/FuzzAddressPolicyJSON/**
+            testdata/fuzz/FuzzAddressPolicyOrigin/**
+          if-no-files-found: ignore

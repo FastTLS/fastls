@@ -4,7 +4,9 @@ English · [中文](README.md)
 
 A Go request library for custom JA3/JA4R fingerprints, complete profile.Spec execution, ordered HTTP headers, and HTTP/HTTPS/SOCKS5 proxies. The optional [FastTLS/imitate](https://github.com/FastTLS/imitate) library generates browser configurations; Fastls applies them and sends requests.
 
-The first stable Fastls v2 release is `v0.1.0`. The Go module path remains `github.com/FastTLS/fastls`; official source and release notes are published only on GitHub.
+The current stable Fastls v2 release is [`v0.1.1`](https://github.com/FastTLS/fastls/releases/tag/v0.1.1). The Go module path remains `github.com/FastTLS/fastls`; official source and release notes are published only on GitHub.
+
+Development source adds an opt-in [destination address policy](ADDRESS_POLICY.md) with per-hop HTTP/1 and HTTP/2 checks and DNS-pinned TCP dialing. Fetch/RPC and MITM development source has trusted startup configuration and fails closed with older cores. This is not released or exposed by FFI yet.
 
 ## Usage
 
@@ -46,12 +48,13 @@ func fetch(ctx context.Context, target string) ([]byte, error) {
 
 Close response bodies after use. Requests without a fingerprint return after response headers arrive; cancellation, timeouts and network errors can occur while reading Body. Complete Spec execution supports HTTP1/HTTP2. One-shot requests and `Session` support request trailers; `Session` also supports streaming uploads, H2 duplex, phase timeouts, and opt-in content decoding. Response trailers are complete after EOF, and responses report the final protocol and post-redirect URL.
 
-H3 accepts a q-prefixed JA4R value as a validated protocol selector and honors `VerifyTLS` and `TLSRootCAs`. Go's standard QUIC TLS stack cannot reproduce arbitrary ClientHello extension order, so this is not a claim of complete browser H3 fingerprint fidelity. H3 explicitly rejects configured proxies instead of silently connecting directly. WS/WSS uses HTTP/1.1 Upgrade; arbitrary Upgrade header order, compression, redirects, and HTTP/2 Extended CONNECT are outside the current scope. Cancellation during subsequent H2 dialing remains a bounded capability; see the integration notes.
+H3 accepts a q-prefixed JA4R value as a validated protocol selector and honors `VerifyTLS` and `TLSRootCAs`. Go's standard QUIC TLS stack cannot reproduce arbitrary ClientHello extension order, so this is not a claim of complete browser H3 fingerprint fidelity. H3 explicitly rejects configured proxies instead of silently connecting directly. WS/WSS uses HTTP/1.1 Upgrade; arbitrary Upgrade header order, compression, redirects, and HTTP/2 Extended CONNECT are outside the current scope. See the [connection lifecycle notes](SESSION_LIFECYCLE.md) for session close, dial cancellation, and the fixes available in the current development sources.
 
 ## Documentation and tools
 
 - [Fingerprint application, offline registration and capability limits](imitate/README.md)
 - [Development, tests and directory guide](DEVELOPMENT.md)
+- [Session, cancellation and connection lifecycle (Chinese)](SESSION_LIFECYCLE.md)
 - [Shared profile specification](profile/README.md)
 - [Command-line probe source](integration/imitate/cmd/fastls-probe/main.go)
 - [Test tools](tools/README.md)

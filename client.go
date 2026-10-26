@@ -15,6 +15,7 @@ import (
 )
 
 type browser struct {
+	AddressPolicy                  *AddressPolicy
 	KeepAlive                      bool
 	Lifetime                       context.Context
 	ProxyConfigured                bool
