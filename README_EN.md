@@ -65,6 +65,8 @@ Explicitly enable `VerifyTLS: true` for fingerprinted Go TCP TLS requests; the h
 
 ## Documentation, license and disclaimer
 
+This worktree includes unpublished [explicit H3 selection and lifecycle/response fixes](HTTP3.md). Set `Options.HTTPVersion = HTTPVersion3` to require H3 without TCP fallback. Python/Node SDK integration and cross-platform certification require their own evidence.
+
 See the [Chinese README](README.md), [fingerprint guide](imitate/README.md), [development guide](DEVELOPMENT.md), [release policy](RELEASE.md) and [issues](https://github.com/FastTLS/fastls/issues). Remove credentials and personal data before sharing examples.
 
 FastTLS-owned code is [Apache-2.0](LICENSE); retain [NOTICE](NOTICE) and [third-party notices](THIRD_PARTY_NOTICES.md). Use only systems and data you are authorized to access and follow applicable laws and service terms. Provided as-is under the license, without guarantees of availability, anonymity, browser equivalence or acceptance by third-party services. Browser names do not imply affiliation. The license and applicable law govern warranty and liability; this notice does not change license rights.

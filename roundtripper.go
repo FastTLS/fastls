@@ -24,6 +24,7 @@ import (
 type duplexKey struct{}
 
 type roundTripper struct {
+	HTTPVersion                    HTTPVersion
 	KeepAlive                      bool
 	Lifetime                       context.Context
 	ProxyConfigured                bool
@@ -50,6 +51,12 @@ type roundTripper struct {
 func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req == nil || req.URL == nil {
 		return nil, errors.New("fastls: nil request or URL")
+	}
+	if rt.HTTPVersion == HTTPVersion3 && req.URL.Scheme != "https" {
+		if req.Body != nil {
+			_ = req.Body.Close()
+		}
+		return nil, errors.New("fastls: forced HTTP/3 requires an https URL on every redirect hop")
 	}
 	req = req.Clone(req.Context())
 	for _, properties := range rt.Cookies {
@@ -124,7 +131,7 @@ func (rt *roundTripper) getTransport(req *http.Request, key string) (http.RoundT
 	case "http":
 		protocol = ftransport.ProtocolHTTP1
 	case "https":
-		if rt.Fingerprint != nil && !rt.Fingerprint.IsEmpty() && strings.HasPrefix(rt.Fingerprint.Value(), "q") {
+		if rt.HTTPVersion == HTTPVersion3 || (rt.Fingerprint != nil && !rt.Fingerprint.IsEmpty() && strings.HasPrefix(rt.Fingerprint.Value(), "q")) {
 			if rt.ProxyConfigured {
 				return nil, 0, errors.New("fastls: HTTP/3 does not support configured proxies")
 			}
@@ -132,6 +139,7 @@ func (rt *roundTripper) getTransport(req *http.Request, key string) (http.RoundT
 			if err != nil {
 				return nil, 0, err
 			}
+			h3.KeepAlive, h3.Lifetime = rt.KeepAlive, rt.Lifetime
 			rt.cacheTransport(key, h3, 0)
 			return h3, 0, nil
 		}
@@ -350,7 +358,8 @@ func newRoundTripper(browser browser, dialers ...proxy.ContextDialer) http.Round
 		dialer = dialers[0]
 	}
 	return &roundTripper{
-		KeepAlive: browser.KeepAlive, Lifetime: browser.Lifetime, ProxyConfigured: browser.ProxyConfigured,
+		HTTPVersion: browser.HTTPVersion,
+		KeepAlive:   browser.KeepAlive, Lifetime: browser.Lifetime, ProxyConfigured: browser.ProxyConfigured,
 		VerifyTLS: browser.VerifyTLS, TLSRootCAs: browser.TLSRootCAs,
 		Profile: browser.Profile, Fingerprint: browser.Fingerprint,
 		UserAgent: browser.UserAgent, FingerprintUserAgent: browser.FingerprintUserAgent,

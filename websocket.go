@@ -39,6 +39,9 @@ type WebSocketClient struct {
 // NewWebSocketClientWithOptions creates a new WebSocket client from Options
 // Prepare options with imitate.Use and an explicit provider, or supply a custom fingerprint.
 func NewWebSocketClientWithOptions(options Options) *WebSocketClient {
+	if options.HTTPVersion != HTTPVersionAuto {
+		return &WebSocketClient{setupError: fmt.Errorf("fastls: WebSocket uses HTTP/1.1 Upgrade and does not support explicit HTTPVersion selection")}
+	}
 	options.Headers = maps.Clone(options.Headers)
 	options.UserAgent = options.requestUserAgent()
 	for k := range options.Headers {

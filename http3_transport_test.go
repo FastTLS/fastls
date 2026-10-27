@@ -14,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 )
 
@@ -25,7 +24,6 @@ func TestHTTP3LocalRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer packetConn.Close()
 	defer packetConn.Close()
 	server := &http3.Server{
 		TLSConfig: &tls.Config{Certificates: certServer.TLS.Certificates},
@@ -43,9 +41,6 @@ func TestHTTP3LocalRequest(t *testing.T) {
 			}
 			transport := &http3.Transport{
 				TLSClientConfig: cfg,
-				Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, quicCfg *quic.Config) (*quic.Conn, error) {
-					return (&http3Transport{}).dialQUICEarly(ctx, addr, tlsCfg, quicCfg)
-				},
 			}
 			defer transport.Close()
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

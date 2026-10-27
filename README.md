@@ -84,6 +84,8 @@ func fetch(options fastls.Options) error {
 - 不是浏览器运行时，不执行页面 JavaScript，不提供验证码处理、完整浏览器模拟或第三方服务成功率保证。
 - 开发分支的地址策略、生命周期修复等须以实际标签说明为准，不能仅凭默认分支文档推断已发布。
 
+本工作区包含尚未发布的 [H3 显式协议选择及生命周期/响应修复](HTTP3.md)：可设置 `Options.HTTPVersion = HTTPVersion3`，失败时不回退到 TCP；验收及剩余范围见该说明。Python/Node SDK 的 H3 接入仍未完成。
+
 ## 仓库内文档
 
 - [指纹、离线数据与能力范围](imitate/README.md)

@@ -19,6 +19,8 @@ import (
 
 // Options 设置 Fastls 客户端选项
 type Options struct {
+	// HTTPVersion3 requires H3 on every hop; zero preserves existing selection.
+	HTTPVersion                    HTTPVersion `json:"httpVersion,omitempty"`
 	reuseConnections               bool
 	lifetime                       context.Context
 	FingerprintUserAgent           string              `json:"-"` // Protocol parser identity; request headers never change it.
@@ -97,6 +99,9 @@ type Fastls struct {
 
 // processRequest 创建并准备请求上下文
 func processRequest(options *Options, shared ...http.Client) (*requestContext, error) {
+	if err := options.validateHTTPVersion(); err != nil {
+		return nil, err
+	}
 	if options.Profile != nil {
 		if err := ApplyProfile(options, *options.Profile); err != nil {
 			return nil, err
@@ -127,11 +132,12 @@ func processRequest(options *Options, shared ...http.Client) (*requestContext, e
 			options.PHeaderOrderKeys = pHeaderOrderKeys
 		}
 	}
-	if options.PHeaderOrderKeys == nil {
+	if options.PHeaderOrderKeys == nil && options.HTTPVersion != HTTPVersion3 {
 		options.PHeaderOrderKeys = []string{":method", ":authority", ":scheme", ":path"}
 	}
 
 	var browser = browser{
+		HTTPVersion:                    options.HTTPVersion,
 		KeepAlive:                      options.reuseConnections,
 		Lifetime:                       options.lifetime,
 		ProxyConfigured:                options.Proxy != "",

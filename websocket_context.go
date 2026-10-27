@@ -25,6 +25,9 @@ func DialWebSocketContext(ctx context.Context, endpoint string, options Options,
 	if ctx == nil {
 		return nil, nil, errors.New("nil WebSocket context")
 	}
+	if options.HTTPVersion != HTTPVersionAuto {
+		return nil, nil, errors.New("fastls: WebSocket uses HTTP/1.1 Upgrade and does not support explicit HTTPVersion selection")
+	}
 	u, err := url.Parse(endpoint)
 	if err != nil || u.Hostname() == "" || u.User != nil || u.Fragment != "" || (u.Scheme != "ws" && u.Scheme != "wss") {
 		return nil, nil, errors.New("WebSocket requires an absolute ws/wss URL without credentials or fragment")
