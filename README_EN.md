@@ -4,6 +4,8 @@
 
 Go HTTP client with configurable TLS/HTTP fingerprints, ordered headers, browser profiles, JA3/JA4R and complete profile.Spec support. Stable core: `v0.1.1`; module path: `github.com/FastTLS/fastls` (no `/v2`). Requires Go 1.26+.
 
+The development branch adds an opt-in [destination address policy](ADDRESS_POLICY.md) and [session cancellation contract](SESSION_LIFECYCLE.md). The policy covers direct TCP HTTP/HTTPS only; proxies, H3 (including explicit `HTTPVersion3`) and WebSocket are rejected before network access when a policy is enabled. These APIs are unreleased.
+
 ```sh
 go get github.com/FastTLS/fastls@v0.1.1
 go get github.com/FastTLS/imitate@v0.1.0
