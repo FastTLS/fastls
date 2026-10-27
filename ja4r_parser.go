@@ -13,7 +13,7 @@ import (
 // JA4R 格式：t13d<num>_<cipher_suites>_<extensions>_<signature_algorithms>
 // 例如：t13d5911_002f,0032,0033_000a,000b,000d_0403,0503,0603
 //
-// 注意：此功能是实验性的，API 可能会在未来的版本中发生变化。
+// 实验性 API，后续版本可能调整。
 // EXPERIMENTAL: This feature is experimental and the API may change in future versions.
 func ParseJA4R(ja4r string, userAgent string) (*utls.ClientHelloSpec, error) {
 	// 验证格式
@@ -208,7 +208,7 @@ func ParseJA4R(ja4r string, userAgent string) (*utls.ClientHelloSpec, error) {
 	}
 
 	// 构建扩展列表（严格按照 JA4R 中的顺序）
-	// 按照 extensionIDs 的顺序逐个处理，确保顺序一致
+	// 按 extensionIDs 中的顺序添加扩展，保留指纹指定的扩展顺序
 	var extList []utls.TLSExtension
 	var pskExt utls.TLSExtension
 	hasSNI, hasALPN := false, false
@@ -273,7 +273,7 @@ func ParseJA4R(ja4r string, userAgent string) (*utls.ClientHelloSpec, error) {
 		extList = append(extList, alpn)
 	}
 
-	// 处理 PSK 扩展：确保它在最后（如果存在）
+	// PSK 扩展必须放在 ClientHello 扩展列表末尾
 	if pskExt != nil {
 		// Chrome 的最后一个 GREASE 扩展应该在 PSK 之前
 		if browserType == chrome {

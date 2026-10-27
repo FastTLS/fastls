@@ -93,11 +93,9 @@ func NewWebSocketClient(fingerprint Fingerprint, userAgent string, headers http.
 				return nil, fmt.Errorf("create TLS spec failed: %w", err)
 			}
 
-			// 修改 spec 中的 ALPN 扩展，确保只包含 http/1.1（WebSocket 不支持 HTTP/2）
-			// 遍历扩展列表，找到并替换 ALPN 扩展
+			// 此处使用 HTTP/1.1 Upgrade 握手，ALPN 只声明 http/1.1
 			for i, ext := range spec.Extensions {
 				if _, ok := ext.(*utls.ALPNExtension); ok {
-					// 替换为只包含 http/1.1 的 ALPN 扩展
 					spec.Extensions[i] = &utls.ALPNExtension{
 						AlpnProtocols: []string{"http/1.1"},
 					}
@@ -117,8 +115,7 @@ func NewWebSocketClient(fingerprint Fingerprint, userAgent string, headers http.
 				return nil, fmt.Errorf("apply TLS preset failed: %w", err)
 			}
 
-			// 确保 ALPN 协议只包含 http/1.1
-			// 直接修改 HandshakeState 中的 ALPN 协议列表
+			// 将握手状态中的 ALPN 与上面的配置保持一致
 			if conn.HandshakeState.Hello != nil {
 				conn.HandshakeState.Hello.AlpnProtocols = []string{"http/1.1"}
 			}
@@ -128,7 +125,7 @@ func NewWebSocketClient(fingerprint Fingerprint, userAgent string, headers http.
 				return nil, fmt.Errorf("TLS handshake failed: %w", err)
 			}
 
-			// 验证协商的协议是 HTTP/1.1（WebSocket 不支持 HTTP/2）
+			// 此握手路径仅接受 http/1.1 或未协商 ALPN 的连接
 			negotiatedProto := conn.ConnectionState().NegotiatedProtocol
 			if negotiatedProto != "" && negotiatedProto != "http/1.1" {
 				conn.Close()
@@ -161,7 +158,7 @@ func NewWebSocketClient(fingerprint Fingerprint, userAgent string, headers http.
 				return nil, fmt.Errorf("TLS handshake failed: %w", err)
 			}
 
-			// 验证协商的协议是 HTTP/1.1（WebSocket 不支持 HTTP/2）
+			// 此握手路径仅接受 http/1.1 或未协商 ALPN 的连接
 			negotiatedProto := conn.ConnectionState().NegotiatedProtocol
 			if negotiatedProto != "" && negotiatedProto != "http/1.1" {
 				conn.Close()

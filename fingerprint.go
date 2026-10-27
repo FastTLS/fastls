@@ -29,7 +29,7 @@ func (j Ja3Fingerprint) IsEmpty() bool {
 
 // Ja4Fingerprint 表示 JA4R 指纹
 //
-// 注意：此功能是实验性的，API 可能会在未来的版本中发生变化。
+// 实验性 API，后续版本可能调整。
 // EXPERIMENTAL: This feature is experimental and the API may change in future versions.
 type Ja4Fingerprint struct {
 	FingerprintValue string `json:"value"`
@@ -37,7 +37,7 @@ type Ja4Fingerprint struct {
 
 // Type 返回指纹类型 "ja4r"
 //
-// 注意：此功能是实验性的。
+// 实验性 API。
 // EXPERIMENTAL: This feature is experimental.
 func (j Ja4Fingerprint) Type() string {
 	return "ja4r"
@@ -80,7 +80,7 @@ func (o *Options) IsJa3() bool {
 
 // IsJa4 检查当前使用的是否为 JA4R 指纹
 //
-// 注意：此功能是实验性的，API 可能会在未来的版本中发生变化。
+// 实验性 API，后续版本可能调整。
 // EXPERIMENTAL: This feature is experimental and the API may change in future versions.
 func (o *Options) IsJa4() bool {
 	return o.GetFingerprintType() == "ja4r"
