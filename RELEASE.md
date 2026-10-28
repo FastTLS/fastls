@@ -4,6 +4,8 @@ Fastls v2 使用 `v0.1.0` 起步，但模块路径保持 `github.com/FastTLS/fas
 
 ## 当前正式基线
 
+下一补丁 `v0.1.2` 固定真实上游 `ftransport v0.1.1`，包含已整合的取消与连接生命周期、H3 生命周期及地址策略检查。profile 保持 `profile/v0.1.0`；H3、代理和指纹能力仍按各自文档声明范围。该版本的源码、独立模块下载和测试证据须绑定实际标签，不沿用旧开发工作区的替换图。
+
 2026-10-25 完成首轮 GitHub-only 正式发布。当前稳定组合为 `ftransport v0.1.0`、`profile/v0.1.0`、`imitate v0.1.0` 和 `fastls v0.1.1`。`fastls v0.1.1` 修复 Session 缓冲请求 Trailer，并隔离直接模块下载验证；不可变的 `v0.1.0` 保留为历史版本。
 
 正式下游基线为 `fastls-fetch v0.1.0`、`fastls-rpc v0.1.0`、`fastls-mitm v0.1.0` 和 `fastls-ffi v0.1.2`。版本状态以各仓库 GitHub Release 为准；开发文档中的旧候选号和旧 Actions 运行只表示当时证据。
