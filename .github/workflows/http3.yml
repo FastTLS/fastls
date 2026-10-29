@@ -1,15 +1,9 @@
 name: HTTP3 lifecycle contracts
 
+# Normal candidate coverage is provided once by CI; this entry retains
+# explicit repeated/fuzz diagnostics without rerunning it on every push.
 on:
   workflow_dispatch:
-  push:
-    branches: [v2, main, 'codex/h3-*']
-  pull_request:
-    paths:
-      - '*.go'
-      - go.mod
-      - go.sum
-      - .github/workflows/http3.yml
 
 permissions:
   contents: read

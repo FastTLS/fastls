@@ -1,16 +1,8 @@
 name: Address policy contract
 
+# Normal candidate coverage is provided once by CI; this entry retains
+# explicit repeated/fuzz diagnostics without rerunning it on every push.
 on:
-  push:
-    paths:
-      - '*.go'
-      - 'go.mod'
-      - 'go.sum'
-      - 'testdata/fuzz/FuzzAddressPolicyAuthority/**'
-      - 'testdata/fuzz/FuzzAddressPolicyJSON/**'
-      - 'testdata/fuzz/FuzzAddressPolicyOrigin/**'
-      - '.github/workflows/address-policy.yml'
-  pull_request:
   workflow_dispatch:
 
 permissions:
