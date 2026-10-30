@@ -20,12 +20,13 @@ import (
 // responses remain active until their bodies finish, not just until headers.
 type http3Transport struct {
 	sync.Mutex
-	Fingerprint Fingerprint // A selector, not arbitrary QUIC ClientHello ordering.
-	UserAgent   string
-	VerifyTLS   bool
-	TLSRootCAs  *x509.CertPool
-	KeepAlive   bool
-	Lifetime    context.Context
+	Fingerprint   Fingerprint // A selector, not arbitrary QUIC ClientHello ordering.
+	UserAgent     string
+	VerifyTLS     bool
+	TLSRootCAs    *x509.CertPool
+	KeepAlive     bool
+	Lifetime      context.Context
+	AddressPolicy *AddressPolicy
 
 	transport    *http3TransportState
 	stopLifetime func() bool
@@ -76,6 +77,10 @@ func (t *http3Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 			// Fastls owns content decoding and its decompression budgets.
 			DisableCompression: true,
 		}}
+		if t.AddressPolicy != nil {
+			t.transport.policyDialer = &http3PolicyDialer{policy: t.AddressPolicy}
+			t.transport.Dial = t.transport.policyDialer.Dial
+		}
 		// Keep the upstream context-aware DNS, dial and httptrace handling.
 		// Close releases both QUIC connections and the transport-owned UDP socket.
 		if t.Lifetime != nil {
@@ -200,8 +205,9 @@ type http3Body struct {
 // network dialing. Close waits only for initialization, never for a handshake.
 type http3TransportState struct {
 	*http3.Transport
-	initialized chan struct{}
-	initOnce    sync.Once
+	initialized  chan struct{}
+	initOnce     sync.Once
+	policyDialer *http3PolicyDialer
 }
 
 func (s *http3TransportState) markInitialized() {
@@ -216,7 +222,11 @@ func (s *http3TransportState) RoundTrip(req *http.Request) (*http.Response, erro
 
 func (s *http3TransportState) Close() error {
 	<-s.initialized
-	return s.Transport.Close()
+	err := s.Transport.Close()
+	if s.policyDialer != nil {
+		s.policyDialer.Close()
+	}
+	return err
 }
 
 type http3UploadBody struct {

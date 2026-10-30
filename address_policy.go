@@ -50,7 +50,7 @@ type AddressPolicyConfig struct {
 	Resolver     IPResolver
 }
 
-// AddressPolicy fixes the identity of a direct HTTP/1 or HTTP/2 transport.
+// AddressPolicy fixes the identity of a direct HTTP transport.
 // A nil Options.AddressPolicy disables policy enforcement. A non-nil zero
 // AddressPolicy fails closed; construct usable policies with NewAddressPolicy.
 // There are no mutators; the policy can be shared across sessions.
@@ -216,8 +216,8 @@ func (p *AddressPolicy) checkIP(ip netip.Addr) error {
 // DialContext resolves once for this connection attempt, validates ALL answers,
 // then dials only numeric addresses from that snapshot. No second DNS lookup
 // is handed to net.Dialer. TLS still uses the original URL host for SNI/roots.
-// Proxy and HTTP/3 paths must not use this policy until they have equivalent
-// binding guarantees. The overall DNS + TCP budget is at most 30 seconds.
+// Proxies must not use this policy without equivalent binding guarantees.
+// The overall DNS + TCP budget is at most 30 seconds.
 func (p *AddressPolicy) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	return p.dialContext(ctx, network, address, (&net.Dialer{}).DialContext)
 }
@@ -232,25 +232,9 @@ func (p *AddressPolicy) dialContext(ctx context.Context, network, address string
 	if network != "tcp" && network != "tcp4" && network != "tcp6" {
 		return nil, addressDenied("network_unsupported")
 	}
-	host, port, err := net.SplitHostPort(address)
-	if err != nil {
-		return nil, addressDenied("invalid_authority")
-	}
-	// Repeat host/port checks at the socket boundary as a defense against a
-	// transport attempting to connect to a different origin than its request.
-	number, err := strconv.ParseUint(port, 10, 16)
-	if err != nil || number == 0 {
-		return nil, addressDenied("invalid_port")
-	}
-	host, err = policyHost(host)
+	host, port, err := p.dialAuthority(address)
 	if err != nil {
 		return nil, err
-	}
-	if len(p.hosts) > 0 && !slices.Contains(p.hosts, host) {
-		return nil, addressDenied("host_not_allowed")
-	}
-	if len(p.ports) > 0 && !slices.Contains(p.ports, uint16(number)) {
-		return nil, addressDenied("port_not_allowed")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -280,6 +264,34 @@ func (p *AddressPolicy) dialContext(ctx context.Context, network, address string
 		last = addressDenied("dns_address_family")
 	}
 	return nil, last
+}
+
+// dialAuthority repeats logical target checks at the actual socket boundary.
+func (p *AddressPolicy) dialAuthority(address string) (string, string, error) {
+	if p == nil || !p.ready {
+		return "", "", addressDenied("uninitialized_policy")
+	}
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return "", "", addressDenied("invalid_authority")
+	}
+	// Repeat host/port checks at the socket boundary as a defense against a
+	// transport attempting to connect to a different origin than its request.
+	number, err := strconv.ParseUint(port, 10, 16)
+	if err != nil || number == 0 {
+		return "", "", addressDenied("invalid_port")
+	}
+	host, err = policyHost(host)
+	if err != nil {
+		return "", "", err
+	}
+	if len(p.hosts) > 0 && !slices.Contains(p.hosts, host) {
+		return "", "", addressDenied("host_not_allowed")
+	}
+	if len(p.ports) > 0 && !slices.Contains(p.ports, uint16(number)) {
+		return "", "", addressDenied("port_not_allowed")
+	}
+	return host, port, nil
 }
 
 func (p *AddressPolicy) resolveAddresses(ctx context.Context, host string) ([]netip.Addr, error) {

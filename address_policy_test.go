@@ -505,7 +505,6 @@ func TestAddressPolicyRejectsUnsupportedPathsBeforeNetwork(t *testing.T) {
 	for _, options := range []Options{
 		{AddressPolicy: p, Proxy: "http://user:secret@proxy.test:8080"},
 		{AddressPolicy: p, Fingerprint: Ja4Fingerprint{FingerprintValue: "q" + regressionJA4R[1:]}},
-		{AddressPolicy: p, HTTPVersion: HTTPVersion3},
 	} {
 		reason := "proxy_unsupported"
 		if options.Proxy == "" {

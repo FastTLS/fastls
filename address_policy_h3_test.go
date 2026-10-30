@@ -23,12 +23,12 @@ func (s *policyCachedTransport) RoundTrip(*http.Request) (*http.Response, error)
 
 // Exercise RoundTrip directly as well as the public setup tests. A cached
 // transport must never bypass the policy, and rejected uploads close once.
-func TestAddressPolicyH3RejectsBeforeCachedTransport(t *testing.T) {
+func TestAddressPolicyH3ChecksBeforeCachedTransport(t *testing.T) {
 	for _, selector := range []string{"explicit", "q-ja4r"} {
 		for _, cached := range []bool{false, true} {
 			t.Run(selector+map[bool]string{false: "/new", true: "/cached"}[cached], func(t *testing.T) {
 				var queries atomic.Int32
-				policy := mustPolicy(t, AddressPolicyConfig{Resolver: policyResolverFunc(func(context.Context, string, string) ([]netip.Addr, error) {
+				policy := mustPolicy(t, AddressPolicyConfig{AllowHosts: []string{"other.test"}, Resolver: policyResolverFunc(func(context.Context, string, string) ([]netip.Addr, error) {
 					queries.Add(1)
 					return nil, nil
 				})})
@@ -49,7 +49,11 @@ func TestAddressPolicyH3RejectsBeforeCachedTransport(t *testing.T) {
 					t.Fatal(err)
 				}
 				response, err := rt.RoundTrip(req)
-				requirePolicyReason(t, err, "http3_unsupported")
+				reason := "host_not_allowed"
+				if selector == "q-ja4r" {
+					reason = "http3_unsupported"
+				}
+				requirePolicyReason(t, err, reason)
 				if response != nil || queries.Load() != 0 || spy.calls.Load() != 0 || body.closes.Load() != 1 {
 					t.Fatalf("response=%v DNS=%d dispatches=%d closes=%d", response, queries.Load(), spy.calls.Load(), body.closes.Load())
 				}

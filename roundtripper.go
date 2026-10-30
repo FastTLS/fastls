@@ -68,7 +68,7 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		if rt.ProxyConfigured {
 			return nil, addressDenied("proxy_unsupported")
 		}
-		if rt.HTTPVersion == HTTPVersion3 || rt.Fingerprint != nil && !rt.Fingerprint.IsEmpty() && strings.HasPrefix(rt.Fingerprint.Value(), "q") {
+		if rt.Fingerprint != nil && !rt.Fingerprint.IsEmpty() && strings.HasPrefix(rt.Fingerprint.Value(), "q") {
 			return nil, addressDenied("http3_unsupported")
 		}
 		if err := rt.AddressPolicy.checkRequest(req); err != nil {
@@ -158,6 +158,7 @@ func (rt *roundTripper) getTransport(req *http.Request, key string) (http.RoundT
 				return nil, 0, err
 			}
 			h3.KeepAlive, h3.Lifetime = rt.KeepAlive, rt.Lifetime
+			h3.AddressPolicy = rt.AddressPolicy
 			rt.cacheTransport(key, h3, 0)
 			return h3, 0, nil
 		}

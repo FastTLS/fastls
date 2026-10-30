@@ -127,7 +127,7 @@ func processRequest(options *Options, shared ...http.Client) (*requestContext, e
 		if options.Proxy != "" {
 			return nil, addressDenied("proxy_unsupported")
 		}
-		if options.HTTPVersion == HTTPVersion3 || options.Fingerprint != nil && !options.Fingerprint.IsEmpty() && strings.HasPrefix(options.Fingerprint.Value(), "q") {
+		if options.Fingerprint != nil && !options.Fingerprint.IsEmpty() && strings.HasPrefix(options.Fingerprint.Value(), "q") {
 			return nil, addressDenied("http3_unsupported")
 		}
 	}
