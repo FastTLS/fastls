@@ -1,6 +1,6 @@
-# 可选目标地址策略（开发源码）
+# 可选目标地址策略
 
-P03-B1新增能力，尚未发布。`fastls v0.1.1`没有本页API。Fetch、JSON-RPC、gRPC及MITM开发源码已增加独立的可信策略启动选项，须编译进支持相应新API的核心才能启用；使用旧核心时明确拒绝启动。FFI仍未暴露对应策略输入，不能把本页当作所有下游正式版本已启用访问控制的声明。
+可信 Session 地址策略已接入 Go 与 Python/Node。当前源码进一步支持显式 `HTTPVersion3` 与策略组合；SDK 须声明 `http3_address_policy_v1` 才能使用此组合，正式发行状态以 SDK 发行说明为准。旧 `fastls v0.1.1` 不包含这些 API。
 
 ## 启用
 
@@ -52,7 +52,7 @@ P03-B3新增`Fastls.CheckAddressPolicy(ctx, request, expectedOrigin)`无目标�
 
 使用`errors.Is(err, fastls.ErrAddressDenied)`识别策略拒绝；`errors.As`取得`*fastls.AddressPolicyError`及稳定`Reason`，例如`host_not_allowed`、`port_not_allowed`、`cidr_denied`、`cidr_not_allowed`、`host_override`。解析器和拨号器的取消/超时继续保留原错误链，不转换为普通策略拒绝。策略错误本身不包含URL或凭据；外围`net/url`包装及现有日志仍可能包含URL，不能视为已经实现脱敏审计。
 
-启用策略时，配置HTTP/HTTPS/SOCKS代理、HTTP3的q指纹或显式`HTTPVersion3`（包括无指纹配置）、两类接收Options的WebSocket入口，均在联网前明确拒绝。原因分别是`proxy_unsupported`、`http3_unsupported`、`websocket_unsupported`。不能通过不受控的代理远端DNS或QUIC绕过本地TCP地址绑定；未来开放这些路径需要独立保证和回归。拒绝前已接管的请求上传体会关闭。
+启用策略时，HTTP/HTTPS/SOCKS 代理、HTTP3 的 q 指纹选择器与两类接收 Options 的 WebSocket 入口仍在联网前拒绝，原因分别为 `proxy_unsupported`、`http3_unsupported`、`websocket_unsupported`。显式 H3 不传指纹选择器时支持策略；拒绝前已接管的上传体会关闭。
 
 这不是操作系统出站防火墙，不校验服务端后续代理行为、路由/NAT变换或目标应用的业务权限。不自动升级TLS验证开关：需要证书校验时仍显式设置`VerifyTLS:true`。
 
@@ -61,3 +61,14 @@ P03-B3新增`Fastls.CheckAddressPolicy(ctx, request, expectedOrigin)`无目标�
 `address_policy_test.go`覆盖规则复制、规范化、CIDR优先级、映射地址、混合DNS结果、固定IP重试、解析取消、逐跳重定向、DNS重绑定、后续新连接、Host覆盖、上传体回收、标准TLS/uTLS、H1/H2复用及并发。保留模糊测试发现的非法UTF-8样本。独立Action配置三个操作系统和两套Go工具链，Linux增加race/fuzz；提交推送之前不能宣称远端矩阵已通过。
 
 Fetch/RPC的服务端配置与MITM独立安全拦截模式均已在开发源码接入，默认公开依赖构建仍因旧核心而不能启用。MITM策略模式有单请求正文限额；Fetch/RPC可配置请求大小、连接/隧道配额和审计接口仍未实现。本轮不改变下游公开依赖版本，不新增标签或Release。
+
+
+## 显式 H3 的目标绑定
+
+设置 `Options{HTTPVersion: HTTPVersion3, AddressPolicy: policy, VerifyTLS: true}`。每个新 QUIC 连接重新解析并校验全部地址，然后只向批准的数字 IP/端口创建 connected UDP socket；不会再次解析域名。原 URL authority、SNI 与证书名称保持一致。解析及全部连接尝试共享最多 30 秒预算，更短的请求/阶段截止时间优先。
+
+socket 由内核固定远端；PacketConn 的 WriteTo 同时拒绝其它目标（`peer_change_unsupported`），不暴露可绕过校验的原始/OOB/批量写入接口。因此策略路径不启用 ECN/GSO、连接迁移或服务端首选地址切换，不启用 0-RTT。普通无策略 H3 路径保持原实现，不能由本路径推断浏览器指纹或性能等价。
+
+会话内可复用同一 origin 已批准的物理连接，DNS 改变不会追溯撤销既有连接；新连接必须校验新快照。策略不可变且随传输固定；每个请求、重定向和缓存分派前仍校验逻辑目标。握手失败、取消、连接结束和会话关闭释放所拥有的 socket；CloseIdleConnections 保留活动正文的原契约。
+
+实现接口依据固定版本 [quic-go v0.57.1 HTTP/3 transport](https://github.com/quic-go/quic-go/blob/v0.57.1/http3/transport.go) 与 [QUIC Dial](https://github.com/quic-go/quic-go/blob/v0.57.1/client.go)，不以其它版本的接口推断当前行为。

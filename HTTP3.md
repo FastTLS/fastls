@@ -1,5 +1,7 @@
 # HTTP/3 开发修复与支持范围
 
+当前源码新增：显式 H3（不带 q 选择器）可组合可信地址策略，采用已批准数字地址的固定远端 UDP socket；限制与关闭语义见 [地址策略](ADDRESS_POLICY.md)。SDK 发布情况以对应版本说明为准。
+
 当前状态（2026-10-30）：显式 H3 已接入并交付 Python 0.2.0 / Node 0.11.0 及后续版本，平台验收见 [SDK 发布记录](https://github.com/FastTLS/fastls-ffi/releases)。浏览器 H3 指纹、UDP 代理与自动 Alt-Svc 尚属独立扩展。下文保留 2026-10-27 原始开发记录，其中“尚未接入/未验收”仅表示当时范围，不覆盖后续交付。
 
 本工作区基于 `fc600f7`，分支 `codex/h3-improvements-20261027`。以下为未发布的 Go 核心改动，不代表正式版本、Python 或 Node SDK 已获得新能力。

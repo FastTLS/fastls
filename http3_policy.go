@@ -40,6 +40,10 @@ func (c *policyPacketConn) SetDeadline(t time.Time) error      { return c.conn.S
 func (c *policyPacketConn) SetReadDeadline(t time.Time) error  { return c.conn.SetReadDeadline(t) }
 func (c *policyPacketConn) SetWriteDeadline(t time.Time) error { return c.conn.SetWriteDeadline(t) }
 
+// Buffer sizing does not expose raw socket access or an alternate write path.
+func (c *policyPacketConn) SetReadBuffer(n int) error  { return c.conn.SetReadBuffer(n) }
+func (c *policyPacketConn) SetWriteBuffer(n int) error { return c.conn.SetWriteBuffer(n) }
+
 // http3.Transport closes QUIC connections but does not own sockets supplied by
 // Dial. Track them through handshake failure, connection end and transport close.
 type http3PolicyDialer struct {

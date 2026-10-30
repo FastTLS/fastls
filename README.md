@@ -17,7 +17,7 @@ go get github.com/FastTLS/imitate@v0.1.0
 
 当前稳定核心版本为 `v0.1.1`；v2 是源码分支/实现代际，导入路径没有 `/v2` 后缀。使用正式标签可避免把尚未发布的默认分支功能当作稳定版本。
 
-开发分支提供可选的[目标地址策略](ADDRESS_POLICY.md)及[会话关闭与取消契约](SESSION_LIFECYCLE.md)。地址策略仅覆盖直接 TCP HTTP/HTTPS；启用策略时代理、H3（包括显式 `HTTPVersion3`）和 WebSocket 在联网前拒绝。这些 API 尚未发布。
+提供可选的[目标地址策略](ADDRESS_POLICY.md)及[会话关闭与取消契约](SESSION_LIFECYCLE.md)。可信策略覆盖直接 H1/H2 与不带指纹选择器的显式 H3；代理、q 指纹及 WebSocket 组合继续拒绝。H3 使用固定远端 UDP socket，实际 SDK 组合能力与版本以发行说明为准。
 
 ## 快速开始
 
