@@ -1,5 +1,11 @@
 # profile 规范模块
 
+## H2 流级配置
+
+schema 1 增加可选 `http2.first_stream_id` 和 `http2.stream_window_increment`。前者 `0`/省略选择 `1`，非零值必须为合法客户端奇数编号；后者 `0`/省略不发送初始流更新，非零值在每个请求初始 HEADERS 后通告一次，并与 SETTINGS 的流接收窗口一起校验 31 位上限。字段为值类型，Clone 和 Bundle/Store 往返保留它们。
+
+任一字段非零必须声明 `capabilities.required_features: ["http2.stream.v1"]`（与其它需要的能力合并）。旧严格 JSON 读取器拒绝未知字段，旧执行后端拒绝未知必需能力，不能无声退化。新增字段不改变 schema、Provider 接口或 C ABI 的版本。旧 profile/v0.1.0 标签不具备这些字段；请使用明确包含该变更的模块版本。
+
 模块路径：`github.com/FastTLS/fastls/profile`。这是 Fastls 仓库中的独立小模块，只依赖 Go 标准库；没有产品目录、UA 算法或协议后端。
 
 `Spec`、`Metadata`、`Match`、`Defaults` 和错误类型保留原导入路径。TLS ID 使用固定宽度 `0x0000` JSON 字符串；TLS 扩展、HTTP2 设置、头和伪头顺序使用有序数组。`Clone` 深拷贝；`Validate` 检查模型语义，执行支持由请求后端另外检查。

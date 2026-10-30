@@ -95,10 +95,13 @@ type Priority struct {
 	Exclusive  bool   `json:"exclusive"`
 }
 type HTTP2Config struct {
-	Settings       []Setting  `json:"settings"`
-	ConnectionFlow uint32     `json:"connection_flow"`
-	HeaderPriority *Priority  `json:"header_priority,omitempty"`
-	PriorityFrames []Priority `json:"priority_frames"`
+	// Zero values preserve stream 1 and send no initial stream window update.
+	FirstStreamID         uint32     `json:"first_stream_id,omitempty"`
+	StreamWindowIncrement uint32     `json:"stream_window_increment,omitempty"`
+	Settings              []Setting  `json:"settings"`
+	ConnectionFlow        uint32     `json:"connection_flow"`
+	HeaderPriority        *Priority  `json:"header_priority,omitempty"`
+	PriorityFrames        []Priority `json:"priority_frames"`
 }
 type Header struct {
 	Name   string   `json:"name"`

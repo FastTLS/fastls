@@ -26,6 +26,15 @@ func Validate(s Spec) error {
 	if err := validateHTTP2(s.HTTP2); err != nil {
 		return fail("http2", err.Error())
 	}
+	if s.HTTP2.FirstStreamID != 0 || s.HTTP2.StreamWindowIncrement != 0 {
+		found := false
+		for _, feature := range s.Capabilities.RequiredFeatures {
+			found = found || feature == "http2.stream.v1"
+		}
+		if !found {
+			return fail("capabilities.required_features", "stream configuration requires http2.stream.v1")
+		}
+	}
 	if err := validateOrder(s.Headers.Order, s.Headers.PseudoOrder); err != nil {
 		return fail("headers.order", err.Error())
 	}
@@ -298,6 +307,18 @@ func validateOrder(order, pseudo []string) error {
 	return nil
 }
 func validateHTTP2(h HTTP2Config) error {
+	if h.FirstStreamID != 0 && (h.FirstStreamID%2 == 0 || h.FirstStreamID > 0x7fffffff) {
+		return ErrInvalidProfile
+	}
+	streamWindow := uint32(65535)
+	for _, setting := range h.Settings {
+		if setting.ID == 4 {
+			streamWindow = setting.Value
+		}
+	}
+	if uint64(streamWindow)+uint64(h.StreamWindowIncrement) > 0x7fffffff {
+		return ErrInvalidProfile
+	}
 	if len(h.Settings) > 1024 || len(h.PriorityFrames) > 1024 || h.ConnectionFlow > 0x7fffffff {
 		return ErrInvalidProfile
 	}
