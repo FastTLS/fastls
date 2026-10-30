@@ -71,6 +71,18 @@ func TestAddressPolicyConfigAndCanonicalization(t *testing.T) {
 	}
 }
 
+func TestAddressPolicyUnspecifiedCannotAuthorizeLocalSystem(t *testing.T) {
+	p := mustPolicy(t, AddressPolicyConfig{AllowCIDRs: []string{"0.0.0.0/0", "::/0"}, DenyCIDRs: []string{"127.0.0.0/8", "::1/128"}})
+	for _, ip := range []string{"0.0.0.0", "::", "::ffff:0.0.0.0"} {
+		requirePolicyReason(t, p.checkIP(netip.MustParseAddr(ip)), "invalid_ip")
+		_, err := p.dialContext(context.Background(), "tcp", net.JoinHostPort(ip, "443"), func(context.Context, string, string) (net.Conn, error) {
+			t.Fatal("unspecified address reached TCP dial")
+			return nil, nil
+		})
+		requirePolicyReason(t, err, "invalid_ip")
+	}
+}
+
 func TestAddressPolicyRequestBoundaries(t *testing.T) {
 	p := mustPolicy(t, AddressPolicyConfig{AllowSchemes: []string{"https"}, AllowHosts: []string{"allowed.test"}, AllowPorts: []uint16{443}})
 	for _, test := range []struct{ endpoint, host, reason string }{

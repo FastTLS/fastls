@@ -115,6 +115,21 @@ func TestH3PolicyRejectsAllAnswersBeforeAnyPacket(t *testing.T) {
 	}
 }
 
+func TestH3PolicyUnspecifiedAnswersCannotAuthorizeLocalSystem(t *testing.T) {
+	for _, ip := range []string{"0.0.0.0", "::", "::ffff:0.0.0.0"} {
+		p := mustPolicy(t, AddressPolicyConfig{AllowCIDRs: []string{"0.0.0.0/0", "::/0"}, DenyCIDRs: []string{"127.0.0.0/8", "::1/128"}, Resolver: policyResolverFunc(func(context.Context, string, string) ([]netip.Addr, error) {
+			return []netip.Addr{netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr(ip)}, nil
+		})})
+		d := &http3PolicyDialer{policy: p}
+		_, err := d.Dial(context.Background(), "example.com:443", &tls.Config{ServerName: "example.com", NextProtos: []string{"h3"}}, nil)
+		requirePolicyReason(t, err, "invalid_ip")
+		if len(d.sockets) != 0 {
+			t.Fatal("invalid mixed answer opened socket")
+		}
+		d.Close()
+	}
+}
+
 func TestH3PolicyPacketConnPinsPeer(t *testing.T) {
 	allowed, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {

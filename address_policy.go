@@ -197,6 +197,11 @@ func (p *AddressPolicy) checkIP(ip netip.Addr) error {
 		return addressDenied("invalid_ip")
 	}
 	ip = ip.Unmap()
+	// net.Dial and net.DialUDP may interpret an unspecified destination as the
+	// local system. It is not a numeric peer authorized by CIDR evaluation.
+	if ip.IsUnspecified() {
+		return addressDenied("invalid_ip")
+	}
 	for _, prefix := range p.deny {
 		if prefix.Contains(ip) {
 			return addressDenied("cidr_denied")
