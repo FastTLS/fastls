@@ -67,7 +67,9 @@ Explicitly enable `VerifyTLS: true` for fingerprinted Go TCP TLS requests; the h
 
 ## Documentation, license and disclaimer
 
-This worktree includes unpublished [explicit H3 selection and lifecycle/response fixes](HTTP3.md). Set `Options.HTTPVersion = HTTPVersion3` to require H3 without TCP fallback. Python/Node SDK integration and cross-platform certification require their own evidence.
+Set `Options.HTTPVersion = HTTPVersion3` to require H3 without TCP fallback. Explicit H3 has also shipped in Python 0.2.0 / Node 0.11.0 and later, with platform evidence in the SDK release records. Browser H3 fingerprints, UDP proxies and automatic Alt-Svc remain separate work. [HTTP3.md](HTTP3.md) preserves the original implementation record and its historical validation scope.
+
+Optional Spec fields `http2.first_stream_id` and `http2.stream_window_increment` require `http2.stream.v1`. Zero/omission keeps stream 1 and no initial stream update. Nonzero IDs are odd and at most 2^31-1; every physical connection restarts at that ID. The receive-window increment is sent once after initial request HEADERS and must fit the 31-bit window together with SETTINGS. It increases potential per-stream buffering. Compact JA3/H2 conversion preserves these unencoded base fields; older parsers/backends reject unsupported configuration.
 
 See the [Chinese README](README.md), [fingerprint guide](imitate/README.md), [development guide](DEVELOPMENT.md), [release policy](RELEASE.md) and [issues](https://github.com/FastTLS/fastls/issues). Remove credentials and personal data before sharing examples.
 

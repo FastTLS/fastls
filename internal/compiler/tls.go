@@ -37,7 +37,7 @@ func TLS(s profile.Spec) (*utls.ClientHelloSpec, error) {
 	}
 	for _, f := range s.Capabilities.RequiredFeatures {
 		switch f {
-		case "tls.ordered.v1", "http1.ordered.v1", "http2.ordered.v1", "ordered-settings", "http.headers.protocol.v1", "tls.signature-advertised.v1", "tls.shuffle-chrome.v1":
+		case "tls.ordered.v1", "http1.ordered.v1", "http2.ordered.v1", "http2.stream.v1", "ordered-settings", "http.headers.protocol.v1", "tls.signature-advertised.v1", "tls.shuffle-chrome.v1":
 		default:
 			return nil, unsupported("capabilities.required_features", f)
 		}

@@ -86,7 +86,7 @@ func fetch(options fastls.Options) error {
 - 不是浏览器运行时，不执行页面 JavaScript，不提供验证码处理、完整浏览器模拟或第三方服务成功率保证。
 - 开发分支的地址策略、生命周期修复等须以实际标签说明为准，不能仅凭默认分支文档推断已发布。
 
-本工作区包含尚未发布的 [H3 显式协议选择及生命周期/响应修复](HTTP3.md)：可设置 `Options.HTTPVersion = HTTPVersion3`，失败时不回退到 TCP；验收及剩余范围见该说明。Python/Node SDK 的 H3 接入仍未完成。
+可设置 `Options.HTTPVersion = HTTPVersion3` 显式选择 H3，失败时不回退到 TCP。Python 0.2.0 / Node 0.11.0 及后续 SDK 已交付显式 H3，平台证据见 SDK 发布记录。[H3 原始记录](HTTP3.md)保留当时的开发与验收边界；浏览器 H3 指纹、UDP 代理和自动 Alt-Svc 仍为独立扩展。
 
 ## 仓库内文档
 
@@ -110,5 +110,7 @@ func fetch(options fastls.Options) error {
 仅在拥有权限的系统、数据和网络上使用，并遵守适用法律、服务条款及隐私要求。软件按许可证约定以“现状”提供，不承诺可用性、特定用途适用性、第三方服务放行、匿名性或与真实浏览器完全一致。浏览器名称和版本用于描述配置，不表示获得相应厂商认证或背书。部署方负责访问控制、密钥和个人信息保护、请求限额及数据备份；担保排除与责任限制以随附许可证及适用法律为准。本说明不改变许可证授予的权利或新增许可限制。
 
 ## JA3/H2 参数转换
+
+完整 Spec 支持可选 `http2.first_stream_id`、`http2.stream_window_increment`，须同时要求 `http2.stream.v1`。省略/零值保持流 1 且无初始流窗口更新；非零流编号为 31 位奇数，每个物理连接重新起号。窗口增量与 SETTINGS 的总接收额度受 31 位上限约束，HEADERS 后发一次，增加的额度也增加单流潜在缓冲。JA3/H2 紧凑格式未编码这些字段，转换保留 base 中的值。参见 [规范](profile/README.md)。
 
 `AdaptProfile(base, FingerprintParameters{JA3: text, H2: text})` 基于显式完整配置，离线生成经后端校验的新 Spec。输入使用标准五字段 JA3 和四段 H2 参数；JA3 未编码的参数保留基础值，未知扩展、冲突或条件省略的扩展会被拒绝。结果使用 custom 变体并清除继承的实测验证声明，不代表完整浏览器等价。格式、限制和语言示例见 [配置转换契约](https://github.com/FastTLS/fastls-ffi/blob/main/FINGERPRINTS.md)。

@@ -125,7 +125,9 @@ func AdaptProfile(base profile.Spec, parameters FingerprintParameters) (profile.
 		if len(parts) != 4 {
 			return fail()
 		}
-		h := profile.HTTP2Config{Settings: []profile.Setting{}, PriorityFrames: []profile.Priority{}, HeaderPriority: s.HTTP2.HeaderPriority}
+		h := s.HTTP2
+		h.Settings = []profile.Setting{}
+		h.PriorityFrames = []profile.Priority{}
 		if parts[0] != "" {
 			settings := strings.Split(parts[0], ";")
 			if len(settings) > 1024 {

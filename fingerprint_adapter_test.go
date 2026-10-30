@@ -19,6 +19,9 @@ const adapterH2 = "2:0;4:131072;1:4096|100000|3:0:0:201|p,a,m,s"
 func TestAdaptProfileIsolationAndWire(t *testing.T) {
 	base := adapterBase()
 	base.HTTP2.HeaderPriority = &profile.Priority{Weight: 42}
+	base.HTTP2.FirstStreamID = 3
+	base.HTTP2.StreamWindowIncrement = 12451840
+	base.Capabilities.RequiredFeatures = []string{"http2.stream.v1"}
 	before, _ := json.Marshal(base)
 	got, err := AdaptProfile(base, FingerprintParameters{JA3: adapterJA3, H2: adapterH2})
 	if err != nil {
@@ -29,6 +32,13 @@ func TestAdaptProfileIsolationAndWire(t *testing.T) {
 	}
 	if got.HTTP2.HeaderPriority == nil || got.HTTP2.HeaderPriority.Weight != 42 {
 		t.Fatal("unencoded HEADERS priority lost")
+	}
+	if got.HTTP2.FirstStreamID != 3 || got.HTTP2.StreamWindowIncrement != 12451840 {
+		t.Fatal("unencoded stream configuration lost")
+	}
+	config := ProfileHTTP2(got.HTTP2)
+	if config.FirstStreamID != 3 || config.StreamWindowIncrement != 12451840 {
+		t.Fatal("transport adaptation lost stream configuration")
 	}
 	preset, err := ProfileToSpec(got)
 	if err != nil {

@@ -96,6 +96,10 @@ jobs:
         run: go vet ./...
       - name: Build all packages
         run: go build ./...
+      - name: Shared profile submodule contracts
+        run: go -C profile test -count=1 ./...
+      - name: Shared profile static checks
+        run: go -C profile vet ./...
 
   quality:
     timeout-minutes: 20
@@ -113,6 +117,8 @@ jobs:
           cache: true
       - name: Race and coverage in one execution
         run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+      - name: Shared profile submodule race
+        run: go -C profile test -race -count=1 ./...
       - name: Coverage
         run: |
           go tool cover -func=coverage.out

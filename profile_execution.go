@@ -78,6 +78,8 @@ func ApplyProfile(o *Options, s profile.Spec) error {
 
 func ProfileHTTP2(h profile.HTTP2Config) *ftransport.HTTP2Config {
 	r := &ftransport.HTTP2Config{
+		FirstStreamID:             h.FirstStreamID,
+		StreamWindowIncrement:     h.StreamWindowIncrement,
 		InitialSettings:           ftransport.ExplicitHTTP2Settings(),
 		ConnectionWindowIncrement: h.ConnectionFlow,
 	}

@@ -1,7 +1,7 @@
-github.com/FastTLS/fastls/profile v0.1.0 h1:xs6Us8L6+81bGDBk+5wvMKg6Y6yd4oeEy0OhNL51jFg=
-github.com/FastTLS/fastls/profile v0.1.0/go.mod h1:dXt6QcpzDhLvBAqbNIpQ2g/vqgUXQRRuaxotdZB6EbU=
-github.com/FastTLS/ftransport v0.1.1 h1:ILQJgkR+/mz5xPjdhcpH+HF/tOWN+HGlvM/wCrNZq0I=
-github.com/FastTLS/ftransport v0.1.1/go.mod h1:uGIjCVD1YNocw7kmsbr3rBXXymBjEzEqlWK984x6aJo=
+github.com/FastTLS/fastls/profile v0.1.1-0.20261030130219-e9e40f15c9ac h1:YQlCrDzxU+C/WmxrMlZR6V2O1J1HzQvcbSePAHLVTCQ=
+github.com/FastTLS/fastls/profile v0.1.1-0.20261030130219-e9e40f15c9ac/go.mod h1:dXt6QcpzDhLvBAqbNIpQ2g/vqgUXQRRuaxotdZB6EbU=
+github.com/FastTLS/ftransport v0.1.2-0.20261030131050-d9812320808e h1:u+U+/6pDjk5ijyeFnzu4W20nCyRo0jLHdm9NueHi/Ls=
+github.com/FastTLS/ftransport v0.1.2-0.20261030131050-d9812320808e/go.mod h1:uGIjCVD1YNocw7kmsbr3rBXXymBjEzEqlWK984x6aJo=
 github.com/andybalholm/brotli v1.2.0 h1:ukwgCxwYrmACq68yiUqwIWnGY0cTPox/M94sVwToPjQ=
 github.com/andybalholm/brotli v1.2.0/go.mod h1:rzTDkvFWvIrjDXZHkuS16NPggd91W3kUSvPlQ1pLaKY=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
