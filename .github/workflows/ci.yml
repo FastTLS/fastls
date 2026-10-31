@@ -31,13 +31,14 @@ jobs:
       mode: ${{ steps.plan.outputs.mode }}
       matrix: ${{ steps.plan.outputs.matrix }}
       quality: ${{ steps.plan.outputs.quality }}
+      h3_resource: ${{ steps.plan.outputs.h3_resource }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Validate selector and rejection gates
-        run: python -m unittest discover -s scripts -p test_ci_plan.py -v
+        run: python -m unittest discover -s scripts -p "test_*.py" -v
       - id: plan
         run: python scripts/ci_plan.py
       - name: Check patch whitespace
@@ -125,11 +126,22 @@ jobs:
       - name: CLI smoke test
         run: |
           go build ./...
+      - name: Clean immutable Go consumer
+        run: python scripts/test-external-consumer.py --fastls-ref "${{ github.sha }}"
+      - name: Five-minute H3 configuration resource acceptance
+        if: needs.plan.outputs.h3_resource == 'true'
+        env:
+          FASTLS_H3_RESOURCE: '1'
+          FASTLS_H3_RESOURCE_REPORT: h3-config-resource.json
+        run: go test . -run '^TestHTTP3ConfigResource$' -count=1 -v -timeout 330s
       - name: Upload coverage
+        if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: coverage-${{ github.sha }}
-          path: coverage.out
+          path: |
+            coverage.out
+            h3-config-resource.json
           retention-days: 14
           if-no-files-found: error
 

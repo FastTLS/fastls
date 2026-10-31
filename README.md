@@ -11,11 +11,11 @@ Go HTTP 客户端库，用于选择浏览器网络配置、自定义 JA3/JA4R �
 需要 Go 1.26+。在自己的 Go 项目中执行：
 
 ```sh
-go get github.com/FastTLS/fastls@v0.1.1
+go get github.com/FastTLS/fastls@v0.2.0
 go get github.com/FastTLS/imitate@v0.1.0
 ```
 
-当前稳定核心版本为 `v0.1.1`；v2 是源码分支/实现代际，导入路径没有 `/v2` 后缀。使用正式标签可避免把尚未发布的默认分支功能当作稳定版本。
+当前稳定核心版本为 `v0.2.0`；v2 是源码分支/实现代际，导入路径没有 `/v2` 后缀。使用正式标签可避免把尚未发布的默认分支功能当作稳定版本。
 
 提供可选的[目标地址策略](ADDRESS_POLICY.md)及[会话关闭与取消契约](SESSION_LIFECYCLE.md)。可信策略覆盖直接 H1/H2 与不带指纹选择器的显式 H3；代理、q 指纹及 WebSocket 组合继续拒绝。H3 使用固定远端 UDP socket，实际 SDK 组合能力与版本以发行说明为准。
 
@@ -114,3 +114,6 @@ func fetch(options fastls.Options) error {
 完整 Spec 支持可选 `http2.first_stream_id`、`http2.stream_window_increment`，须同时要求 `http2.stream.v1`。省略/零值保持流 1 且无初始流窗口更新；非零流编号为 31 位奇数，每个物理连接重新起号。窗口增量与 SETTINGS 的总接收额度受 31 位上限约束，HEADERS 后发一次，增加的额度也增加单流潜在缓冲。JA3/H2 紧凑格式未编码这些字段，转换保留 base 中的值。参见 [规范](profile/README.md)。
 
 `AdaptProfile(base, FingerprintParameters{JA3: text, H2: text})` 基于显式完整配置，离线生成经后端校验的新 Spec。输入使用标准五字段 JA3 和四段 H2 参数；JA3 未编码的参数保留基础值，未知扩展、冲突或条件省略的扩展会被拒绝。结果使用 custom 变体并清除继承的实测验证声明，不代表完整浏览器等价。格式、限制和语言示例见 [配置转换契约](https://github.com/FastTLS/fastls-ffi/blob/main/FINGERPRINTS.md)。
+
+
+Go v0.2.0 新增七项 H3 受控参数、默认/值域查询及不可变会话配置快照，仅用于显式 H3。详见 [Go H3 配置](H3_CONFIG.md)；SDK/服务不自动升级。

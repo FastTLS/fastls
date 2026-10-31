@@ -19,3 +19,5 @@ runs retain the original three platforms and both Go toolchains. Docs-only
 changes omit Go execution. Missing, failed or cancelled planned jobs fail the
 aggregate gate. Normal candidate tests cover core H3 and address-policy contracts
 once; the existing manual workflows retain repeated and fuzz diagnostics.
+
+Go v0.2.0 adds [controlled H3 configuration](H3_CONFIG.md). Normal main CI also runs one clean immutable Go consumer. H3/resource input changes select one five-minute Linux observation; release tags require successful exact-commit main CI and do not repeat tests. SDK and service pins remain unchanged.

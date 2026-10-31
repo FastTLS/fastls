@@ -25,6 +25,7 @@ type duplexKey struct{}
 
 type roundTripper struct {
 	HTTPVersion                    HTTPVersion
+	HTTP3                          *HTTP3EffectiveConfig
 	AddressPolicy                  *AddressPolicy
 	KeepAlive                      bool
 	Lifetime                       context.Context
@@ -159,6 +160,7 @@ func (rt *roundTripper) getTransport(req *http.Request, key string) (http.RoundT
 			}
 			h3.KeepAlive, h3.Lifetime = rt.KeepAlive, rt.Lifetime
 			h3.AddressPolicy = rt.AddressPolicy
+			h3.config = rt.HTTP3
 			rt.cacheTransport(key, h3, 0)
 			return h3, 0, nil
 		}
@@ -381,6 +383,7 @@ func newRoundTripper(browser browser, dialers ...proxy.ContextDialer) http.Round
 	}
 	return &roundTripper{
 		HTTPVersion: browser.HTTPVersion,
+		HTTP3:       browser.HTTP3,
 		KeepAlive:   browser.KeepAlive, Lifetime: browser.Lifetime, ProxyConfigured: browser.ProxyConfigured,
 		AddressPolicy: browser.AddressPolicy,
 		VerifyTLS:     browser.VerifyTLS, TLSRootCAs: browser.TLSRootCAs,

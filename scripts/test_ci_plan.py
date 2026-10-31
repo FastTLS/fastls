@@ -4,6 +4,13 @@ from ci_plan import choose, gate
 
 
 class ValidationPlan(unittest.TestCase):
+    def test_resource_selection_is_scoped_to_changed_resource_inputs(self):
+        self.assertTrue(choose('push','refs/heads/main','auto',['http3_config.go'])['h3_resource'])
+        self.assertTrue(choose('push','refs/heads/main','auto',None)['h3_resource'])
+        self.assertFalse(choose('push','refs/heads/main','auto',['README.md'])['h3_resource'])
+        self.assertFalse(choose('push','refs/heads/main','auto',['errors.go'])['h3_resource'])
+        self.assertFalse(choose('pull_request','refs/pull/1/merge','quick',['http3_config.go'])['h3_resource'])
+
     def test_development_uses_two_current_platforms(self):
         plan = choose('pull_request', 'refs/pull/1/merge', 'auto', ['tunnel.go'])
         self.assertEqual(plan['mode'], 'quick')

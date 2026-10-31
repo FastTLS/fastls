@@ -2,12 +2,12 @@
 
 [中文](README.md) · [Documentation](https://fasttls.github.io/en/fastls/)
 
-Go HTTP client with configurable TLS/HTTP fingerprints, ordered headers, browser profiles, JA3/JA4R and complete profile.Spec support. Stable core: `v0.1.1`; module path: `github.com/FastTLS/fastls` (no `/v2`). Requires Go 1.26+.
+Go HTTP client with configurable TLS/HTTP fingerprints, ordered headers, browser profiles, JA3/JA4R and complete profile.Spec support. Stable core: `v0.2.0`; module path: `github.com/FastTLS/fastls` (no `/v2`). Requires Go 1.26+.
 
 An optional [destination address policy](ADDRESS_POLICY.md) and [session cancellation contract](SESSION_LIFECYCLE.md) cover direct H1/H2 and explicit H3 without a fingerprint selector. Proxies, q selectors and WebSocket remain rejected with a policy. H3 pins a connected UDP socket to the approved peer; consult SDK release notes for the combined capability and published versions.
 
 ```sh
-go get github.com/FastTLS/fastls@v0.1.1
+go get github.com/FastTLS/fastls@v0.2.0
 go get github.com/FastTLS/imitate@v0.1.0
 ```
 
@@ -78,3 +78,6 @@ FastTLS-owned code is [Apache-2.0](LICENSE); retain [NOTICE](NOTICE) and [third-
 ## Compact JA3/H2 parameters
 
 `AdaptProfile(base, FingerprintParameters{JA3: text, H2: text})` returns a fresh, backend-validated complete Spec without I/O. An explicit complete base supplies fields missing from compact fingerprints. Invalid/unsupported/conditional extension inputs fail; custom variants do not inherit capture verification. See the [format and limits](https://github.com/FastTLS/fastls-ffi/blob/main/FINGERPRINTS.md).
+
+
+Go v0.2.0 adds seven controlled H3 parameters, capability discovery and immutable effective configuration snapshots for explicit H3. See [Go H3 configuration](H3_CONFIG.md); SDK/service pins are unchanged.

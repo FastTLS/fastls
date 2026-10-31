@@ -1,9 +1,10 @@
+# Ordinary main releases use CI's one clean Linux consumer. This matrix remains
+# available for changed module graphs, manual compatibility checks and v2 work.
 name: Clean external consumer
 
 on:
   push:
     branches: [v2]
-    tags: ['v[0-9]*']
     paths:
       - '**/go.mod'
       - '**/go.sum'

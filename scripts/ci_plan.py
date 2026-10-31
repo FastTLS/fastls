@@ -29,7 +29,10 @@ def choose(event, ref, requested, paths):
         for platform in (('ubuntu-24.04', 'windows-2022', 'macos-15') if mode == 'candidate'
                          else ('ubuntu-24.04', 'windows-2022'))
         for version in ((CURRENT, NEXT) if mode == 'candidate' else (CURRENT,))]
-    return dict(mode=mode, matrix=dict(include=matrix), quality=mode == 'candidate')
+    resource_inputs = {'http3_config.go', 'http3_transport.go', 'http3_policy.go',
+                       'roundtripper.go', 'session.go', 'http3_config_resource_test.go', 'go.mod', 'go.sum'}
+    resource = mode == 'candidate' and (paths is None or bool(resource_inputs.intersection(paths)))
+    return dict(mode=mode, matrix=dict(include=matrix), quality=mode == 'candidate', h3_resource=resource)
 
 
 def gate(plan, jobs):
@@ -64,6 +67,7 @@ def main():
         output.write('mode=' + plan['mode'] + '\n')
         output.write('matrix=' + json.dumps(plan['matrix'], separators=(',', ':')) + '\n')
         output.write('quality=' + str(plan['quality']).lower() + '\n')
+        output.write('h3_resource=' + str(plan['h3_resource']).lower() + '\n')
     print(json.dumps(plan))
 
 

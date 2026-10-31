@@ -16,6 +16,7 @@ import (
 
 type browser struct {
 	HTTPVersion                    HTTPVersion
+	HTTP3                          *HTTP3EffectiveConfig
 	AddressPolicy                  *AddressPolicy
 	KeepAlive                      bool
 	Lifetime                       context.Context

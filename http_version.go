@@ -18,6 +18,14 @@ const (
 )
 
 func (o Options) validateHTTPVersion() error {
+	if o.HTTP3 != nil {
+		if o.HTTPVersion != HTTPVersion3 {
+			return fmt.Errorf("fastls: HTTP3 configuration requires explicit HTTPVersion3")
+		}
+		if _, err := normalizeHTTP3(o.HTTP3); err != nil {
+			return err
+		}
+	}
 	switch o.HTTPVersion {
 	case HTTPVersionAuto:
 		return nil

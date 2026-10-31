@@ -22,6 +22,8 @@ import (
 type Options struct {
 	// HTTPVersion3 requires H3 on every hop; zero preserves existing selection.
 	HTTPVersion HTTPVersion `json:"httpVersion,omitempty"`
+	// HTTP3 is a Go-only, bounded configuration for explicit HTTPVersion3.
+	HTTP3 *HTTP3Config `json:"-"`
 	// AddressPolicy is an optional, immutable direct HTTP destination policy.
 	// It cannot be supplied through request JSON. Nil preserves existing behavior.
 	AddressPolicy                  *AddressPolicy `json:"-"`
@@ -104,6 +106,7 @@ type Fastls struct {
 
 // processRequest 创建并准备请求上下文
 func processRequest(options *Options, shared ...http.Client) (*requestContext, error) {
+	options.HTTP3 = cloneHTTP3Config(options.HTTP3)
 	if err := options.validateHTTPVersion(); err != nil {
 		return nil, err
 	}
@@ -151,6 +154,7 @@ func processRequest(options *Options, shared ...http.Client) (*requestContext, e
 
 	var browser = browser{
 		HTTPVersion:                    options.HTTPVersion,
+		HTTP3:                          options.effectiveHTTP3(),
 		AddressPolicy:                  options.AddressPolicy,
 		KeepAlive:                      options.reuseConnections,
 		Lifetime:                       options.lifetime,

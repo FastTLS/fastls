@@ -27,6 +27,7 @@ type http3Transport struct {
 	KeepAlive     bool
 	Lifetime      context.Context
 	AddressPolicy *AddressPolicy
+	config        *HTTP3EffectiveConfig
 
 	transport    *http3TransportState
 	stopLifetime func() bool
@@ -77,6 +78,10 @@ func (t *http3Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 			// Fastls owns content decoding and its decompression budgets.
 			DisableCompression: true,
 		}}
+		if t.config != nil {
+			t.transport.QUICConfig = t.config.quicConfig()
+			t.transport.MaxResponseHeaderBytes = int(t.config.MaxResponseHeaderBytes)
+		}
 		if t.AddressPolicy != nil {
 			t.transport.policyDialer = &http3PolicyDialer{policy: t.AddressPolicy}
 			t.transport.Dial = t.transport.policyDialer.Dial

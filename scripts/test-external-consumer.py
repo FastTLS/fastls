@@ -27,6 +27,14 @@ import (
 )
 
 func TestRemoteModulesPerformRequest(t *testing.T) {
+    config := &fastls.HTTP3Config{MaxResponseHeaderBytes: 2048}
+    session, err := fastls.NewSession(fastls.Options{HTTPVersion: fastls.HTTPVersion3, HTTP3: config})
+    if err != nil { t.Fatal(err) }
+    defer session.Close()
+    config.MaxResponseHeaderBytes = 4096
+    effective, ok := session.EffectiveHTTP3Config()
+    if !ok || effective.MaxResponseHeaderBytes != 2048 || len(fastls.HTTP3Capabilities()) != 7 { t.Fatal("H3 API/snapshot contract failed") }
+
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("User-Agent") != "external-consumer/1" {
 			t.Fatalf("unexpected user agent %q", r.Header.Get("User-Agent"))
