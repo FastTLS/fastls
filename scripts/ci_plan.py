@@ -29,7 +29,7 @@ def choose(event, ref, requested, paths):
         for platform in (('ubuntu-24.04', 'windows-2022', 'macos-15') if mode == 'candidate'
                          else ('ubuntu-24.04', 'windows-2022'))
         for version in ((CURRENT, NEXT) if mode == 'candidate' else (CURRENT,))]
-    resource_inputs = {'http3_config.go', 'http3_transport.go', 'http3_policy.go',
+    resource_inputs = {'http3_config.go', 'http3_transport.go', 'http3_policy.go', 'http3_connections.go',
                        'roundtripper.go', 'session.go', 'http3_config_resource_test.go', 'go.mod', 'go.sum'}
     resource = mode == 'candidate' and (paths is None or bool(resource_inputs.intersection(paths)))
     return dict(mode=mode, matrix=dict(include=matrix), quality=mode == 'candidate', h3_resource=resource)

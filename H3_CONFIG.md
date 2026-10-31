@@ -108,7 +108,11 @@ windows. The predeclared outstanding-credit allowance is the configured maximum
 plus 16 KiB for H3 framing/control bytes; cumulative offsets are not compared
 against window sizes. Other tests cover idle vs keepalive, header/trailer
 rejection, trusted policy/SNI, denials, deadlines, active ownership, cancellation,
-blocked uploads, owner isolation and reconnect. Default H1/H2/q tests remain.
+blocked uploads, owner isolation and reconnect. A rejected header can evict a
+connection from the backend cache; independent ownership keeps it available for
+graceful close once active sibling bodies finish, before destroying its UDP
+socket. A live peer regression checks both sibling survival and prompt peer
+connection retirement. Default H1/H2/q tests remain.
 
 One opt-in Linux test (`FASTLS_H3_RESOURCE=1`) runs for 300 seconds without race
 instrumentation. Four concurrent workers repeatedly create/close owners: two

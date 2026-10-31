@@ -84,8 +84,10 @@ func (t *http3Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 		if t.AddressPolicy != nil {
 			t.transport.policyDialer = &http3PolicyDialer{policy: t.AddressPolicy}
-			t.transport.Dial = t.transport.policyDialer.Dial
+			// The owner below tracks policy and direct connections alike.
 		}
+		t.transport.connections = &http3Connections{policy: t.transport.policyDialer}
+		t.transport.Dial = t.transport.connections.Dial
 		// Keep the upstream context-aware DNS, dial and httptrace handling.
 		// Close releases both QUIC connections and the transport-owned UDP socket.
 		if t.Lifetime != nil {
@@ -111,6 +113,9 @@ func (t *http3Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	response, err := transport.RoundTrip(stdReq)
 	if err != nil {
+		t.Lock()
+		t.retireIdle = true // Retire evicted backend connections once sibling bodies finish.
+		t.Unlock()
 		release()
 		return nil, fmt.Errorf("HTTP/3 request failed: %w", err)
 	}
@@ -213,6 +218,7 @@ type http3TransportState struct {
 	initialized  chan struct{}
 	initOnce     sync.Once
 	policyDialer *http3PolicyDialer
+	connections  *http3Connections
 }
 
 func (s *http3TransportState) markInitialized() {
@@ -227,8 +233,13 @@ func (s *http3TransportState) RoundTrip(req *http.Request) (*http.Response, erro
 
 func (s *http3TransportState) Close() error {
 	<-s.initialized
+	if s.connections != nil {
+		s.connections.closeConnections()
+	}
 	err := s.Transport.Close()
-	if s.policyDialer != nil {
+	if s.connections != nil {
+		s.connections.closeSockets()
+	} else if s.policyDialer != nil {
 		s.policyDialer.Close()
 	}
 	return err

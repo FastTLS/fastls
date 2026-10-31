@@ -156,6 +156,7 @@ type peerTrace struct {
 	streamCredit, connectionCredit     uint64
 	maxStreamGrant, maxConnectionGrant uint64
 	pings                              int
+	closed                             int
 	consumed                           atomic.Uint64
 	exceeded                           bool
 }
@@ -167,6 +168,8 @@ func (p *peerTrace) RecordEvent(event qlogwriter.Event) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	switch e := event.(type) {
+	case qlog.ConnectionClosed:
+		p.closed++
 	case qlog.ParametersSet:
 		if e.Initiator == qlog.InitiatorRemote {
 			p.params = append(p.params, e)
@@ -521,4 +524,63 @@ func TestHTTP3ConfigPolicyVerifiedSNIAndDenial(t *testing.T) {
 	if hits.Load() != 1 {
 		t.Fatal("denied/untrusted request reached handler", hits.Load())
 	}
+}
+
+func TestHTTP3ConfigHeaderErrorRetiresPeerAfterActiveBody(t *testing.T) {
+	finish := make(chan struct{})
+	var once sync.Once
+	release := func() { once.Do(func() { close(finish) }) }
+	defer release()
+	trace := &peerTrace{}
+	endpoint, roots := configH3Origin(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/headers" {
+			w.Header().Set("X-Large", strings.Repeat("x", 4096))
+			io.WriteString(w, "oversize")
+			return
+		}
+		w.WriteHeader(200)
+		w.(http.Flusher).Flush()
+		select {
+		case <-finish:
+			io.WriteString(w, "complete")
+		case <-r.Context().Done():
+		}
+	}), trace)
+	s, err := NewSession(Options{HTTPVersion: HTTPVersion3, HTTP3: &HTTP3Config{MaxResponseHeaderBytes: 1024}, VerifyTLS: true, TLSRootCAs: roots})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	first, err := s.DoContext(context.Background(), endpoint, RequestOptions{}, "GET")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Body.Close()
+	if _, err := s.DoContext(context.Background(), endpoint+"/headers", RequestOptions{}, "GET"); err == nil {
+		t.Fatal("header limit did not reject")
+	}
+	s.CloseIdleConnections()
+	trace.mu.Lock()
+	closed := trace.closed
+	trace.mu.Unlock()
+	if closed != 0 {
+		t.Fatal("header error killed active sibling")
+	}
+	release()
+	body, err := io.ReadAll(first.Body)
+	first.Body.Close()
+	if err != nil || string(body) != "complete" {
+		t.Fatal("active response lost", string(body), err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		trace.mu.Lock()
+		closed = trace.closed
+		trace.mu.Unlock()
+		if closed > 0 {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("evicted header-error connection was not gracefully retired at peer")
 }
